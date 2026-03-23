@@ -2,6 +2,9 @@
 name: dw-ingest
 description: "L0 raw artifact scanner. Produces RawCloud artifacts from codebase state. No interpretation, no summary — measurement only."
 model: haiku
+local_llm: true
+local_llm_endpoint: "http://localhost:8090/v1"
+local_llm_fallback: "topo.sh scan"
 tools: ["Glob", "Grep", "Read", "Bash"]
 color: "#e94560"
 ---
@@ -54,6 +57,20 @@ You MUST output ONLY a valid JSON object matching this schema:
 - NO commentary outside the JSON
 - Entropy < 0.1 = include a note but still produce the artifact
 - Maximum 500 files scanned (sample if larger)
+
+## Compute Routing (ADAPTIVE_SCALE)
+
+This agent runs on the local LLM server (`start_local_llm.sh`). The server auto-detects hardware state:
+
+| GPU State | Model | Device | Why |
+|-----------|-------|--------|-----|
+| Free | Llama 3.2 3B (Q4) | CUDA | Transformer — most capable, GPU-accelerated |
+| Busy (experiment running) | LFM 1.2 (Q4) | CPU | State-space — O(n) linear inference, no GPU contention |
+| No GPU | LFM 1.2 (Q4) | CPU | Default fallback |
+
+The agent doesn't need to know which model is running — it calls `http://localhost:8090/v1/chat/completions` and gets JSON back. The routing is infrastructure-level, invisible to the agent logic.
+
+Override: `DW_LLM_DEVICE=cpu DW_LLM_MODEL=lfm start_local_llm.sh`
 
 ## Axiom: NO_AVERAGING
 

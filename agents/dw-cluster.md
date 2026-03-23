@@ -2,6 +2,9 @@
 name: dw-cluster
 description: "L1 persistent clustering agent. Runs actual persistence computation on RawCloud, identifies stable clusters, routes to L2 or reprobes."
 model: sonnet
+local_llm: true
+local_llm_endpoint: "http://localhost:8090/v1"
+local_llm_role: "cluster labeling (step 5 only — persistence computation is Python)"
 tools: ["Read", "Bash"]
 color: "#d08a28"
 ---
