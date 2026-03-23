@@ -1,91 +1,133 @@
 # driftwave
 
-Look at what's there. Parse what's asked. Compute the gap. Execute. Log. Verify.
+You know that thing where you start coding, get halfway through, realize you missed something, undo half your work, start over, and end up worse than where you began?
 
-## Quick Start
+Driftwave is the habit that stops that from happening.
+
+## What It Does
+
+Before you touch anything, it looks. Three questions, answered in parallel:
+
+| Question | What It Checks |
+|----------|---------------|
+| **What's there?** | Your files, git state, what's running, what changed recently |
+| **What's asked?** | What you actually want — not what you said, what you *meant* |
+| **What's the gap?** | The specific actions to get from here to there |
+
+Then it shows you the gap. You say yes. It does the work. It writes down what happened. It checks if it worked.
+
+That's it. That's the whole thing.
+
+```
+/driftwave:directive add user authentication
+```
+
+```
+WHAT IS:     Express app, 12 routes, no auth middleware, users table exists
+WHAT'S ASKED: Add login/logout with session management
+THE GAP:
+  1. Add bcrypt + express-session deps
+  2. Create auth middleware
+  3. Add login/logout routes
+  4. Protect existing routes
+  5. Test login flow
+
+Proceed? (y)
+```
+
+## Why It Works
+
+Not because it's smart. Because it **looks before it acts.**
+
+Most mistakes aren't intelligence failures. They're attention failures. You didn't check what was already there. You didn't scope what you were actually trying to do. You started coding before you understood the gap.
+
+Driftwave forces the pause. Three subagents check three things simultaneously — takes seconds — and now you have a map instead of a guess.
+
+## The Loop
+
+Every action follows the same cycle:
+
+```
+  LOOK ──→ PARSE ──→ GAP ──→ DO ──→ LOG ──→ CHECK
+    ↑                                          │
+    └──────────── next cycle reads the log ────┘
+```
+
+The log is the key. Without it, each cycle starts from scratch. With it, each round knows what the last round did, what worked, what didn't. Mistakes don't repeat because the log remembers them.
+
+Over time, patterns emerge. Ideas that keep coming back session after session — those are real. Ideas that appeared once and disappeared — that was noise. The log tells you which is which.
+
+## Commands
+
+**The basics:**
+
+| Command | Plain English |
+|---------|--------------|
+| `/driftwave:directive` | "Here's what I want. Figure out the gap and do it." |
+| `/driftwave:status` | "What's going on right now?" |
+
+**When things get complex:**
+
+| Command | Plain English |
+|---------|--------------|
+| `/driftwave:run` | "This is big. Run the full analysis pipeline." |
+| `/driftwave:dashboard` | "Show me the topology visually." |
+| `/driftwave:meta` | "What patterns keep showing up across sessions?" |
+
+**Manual layer control (power users):**
+
+| Command | What Layer |
+|---------|-----------|
+| `/driftwave:ingest` | Scan (what's there) |
+| `/driftwave:filter` | Cluster (what's related) |
+| `/driftwave:synthesize` | Design (what to build) |
+| `/driftwave:review` | Check (does it all fit together) |
+
+## Install
 
 ```bash
 claude plugin add gh:RogueGringo/driftwave
 ```
 
-Then in any Claude Code session:
+That's it. Next time you open Claude Code:
 
 ```
-/driftwave:directive build the authentication system
+/driftwave:directive <what you want>
 ```
 
-Three subagents launch in parallel:
-1. **WHAT IS** — scans your codebase, git state, running processes
-2. **WHAT'S ASKED** — parses intent, scope, success criteria
-3. **THE GAP** — diffs those two, produces a numbered action list
+## The Deeper Layer
 
-You approve. It executes. It logs. It verifies.
+Under the hood, driftwave uses the same mathematics that finds structure in prime numbers. Not metaphorically — literally. The clustering algorithm is persistent homology. The quality check is sheaf consistency. The log analysis is a persistence barcode.
 
-## Commands
+You don't need to know any of that. The commands work whether you understand the math or not. But if you're curious:
 
-| Command | What It Does |
-|---------|-------------|
-| `/driftwave:directive` | **The core process.** Three subagents → gap analysis → execute → verify |
-| `/driftwave:run` | Full L0→L3 pipeline with persistence computation |
-| `/driftwave:status` | Pipeline state + artifact inventory + GPU/LLM health |
-| `/driftwave:dashboard` | Three.js topology visualization |
-| `/driftwave:meta` | Cross-session analysis — what ideas keep coming back? |
+- [VISION.md](VISION.md) — the geometric theory of why this works
+- [PROTOCOL.md](PROTOCOL.md) — the full engineering spec
 
-Layer commands (for manual pipeline control):
-| `/driftwave:ingest` | L0 — scan and measure |
-| `/driftwave:filter` | L1 — persistent clustering |
-| `/driftwave:synthesize` | L2 — design synthesis |
-| `/driftwave:review` | L3 — sheaf consistency verdict |
+The short version: when you look at what's there, parse what's asked, and compute the gap — you're doing topology on your project. You're finding the persistent structure (what's real) and filtering the noise (what's not). The math just makes it precise.
 
-## How It Works
+## Five Habits
 
-The directive is the atomic unit. Everything else is the directive applied at scale.
+Driftwave has five principles. They sound fancy but they're common sense:
 
-**Simple requests** → `/driftwave:directive` scans, gaps, executes, verifies.
+1. **Don't summarize too early.** Get the facts first. Details matter.
+2. **Look before you act.** Scan before you plan. Plan before you build.
+3. **Stop when something's wrong.** Don't push through a failing check.
+4. **Focus on what matters most.** Not what's easiest. What's most important.
+5. **Match your effort to the problem.** Small ask, small scan. Big ask, full pipeline.
 
-**Complex requests** → `/driftwave:run` runs the full pipeline: typed artifacts flow through four layers, each handled by a specialized agent, with real persistence computation (the same math that finds structure in prime numbers).
+## What This Is Really About
 
-**Ongoing work** → `/driftwave:meta` tracks what ideas persist across sessions. Long bars = real structure. Short bars = noise. The barcode of your development process.
+The gap between "AI can do this" and "AI reliably does this" isn't intelligence. It's process.
 
-## The Five Axioms
+Today's AI models can reason, write code, analyze data, design systems. What they can't do — without help — is consistently look before they act, log what they did, and verify it worked.
 
-These aren't rules. They're what happens naturally when you look before you act:
+Driftwave is that help. Not new AI. New habits for existing AI.
 
-1. **NO_AVERAGING** — Report facts, not summaries. Don't collapse the signal.
-2. **UPWARD_FLOW** — Look before you act. Scan before you filter. Filter before you synthesize.
-3. **WAYPOINT_ROUTING** — Stop if verification fails. Route on reality, not assumption.
-4. **SHAPE_OVER_COUNT** — What matters most, not what's easiest. Structure over volume.
-5. **ADAPTIVE_SCALE** — Match the scope of scanning to the scope of the request.
+The tools are ready. The models are ready. The process was missing. Now it's not.
 
-## Compute Stack
+---
 
-Driftwave auto-detects your hardware:
+*Built by Aaron Jones. Powered by algebraic topology and the habit of looking before you leap.*
 
-| GPU State | What Happens |
-|-----------|-------------|
-| GPU free | Local LLM (Llama 3.2 3B) on CUDA for fast classification |
-| GPU busy | Local LLM (LFM 1.2) on CPU — state-space model, fast without GPU |
-| No GPU | CPU inference or deterministic fallback |
-| API needed | Sonnet for synthesis, Opus for review — only when reasoning required |
-
-```bash
-# Start local inference (auto-detects GPU/CPU)
-bash plugins/driftwave/scripts/start_local_llm.sh
-```
-
-## What This Actually Is
-
-A process discipline that turns AI capability into reliable outcomes. The gap between "the model can do this" and "the model reliably does this" is not intelligence — it's the habit of looking, logging, and routing at the right intervals.
-
-Today's tools are sufficient. The models reason. The subagents parallelize. The typing prevents drift. What's missing is the process. That's driftwave.
-
-See [VISION.md](VISION.md) for the deeper geometry.
-See [PROTOCOL.md](PROTOCOL.md) for the full operationalization spec.
-
-## References
-
-- *Adaptive Topological Field Theory* (Jones, 2026)
-- *A Unified Topological Framework for System Abstraction via Reverse Engineering* (Jones, 2025)
-- *Computational Topology and the Riemann Hypothesis* (Jones, 2026)
-
-All work is non-published private minus the public repos associated with company and name. All rights reserved.
+*All work is non-published private minus the public repos associated with company and name. All rights reserved.*
