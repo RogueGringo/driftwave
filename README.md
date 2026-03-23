@@ -1,15 +1,20 @@
 # driftwave
 
-Adaptive Topological Field Theory operationalized as a Claude Code plugin.
+ATFT operationalized as a Claude Code plugin.
 
 ## What This Is
 
-A cognitive pipeline that implements sheaf-valued persistent homology across four abstraction layers. It transforms how Claude Code approaches analysis, design, and creative work by enforcing topological rigor at every stage.
+A cognitive pipeline [by step process]
+
+### All work is non-published private minus the public repos associated with company and name.
+All rights reserved.
+Claude Code CLI w/Custom Plugin Tools for all codebases.
+
 
 Based on the mathematical framework in:
 - *Adaptive Topological Field Theory* (Jones, 2026)
-- *A Unified Topological Framework for System Abstraction via Reverse Engineering*
-- *Computational Topology and the Riemann Hypothesis*
+- *A Unified Topological Framework for System Abstraction via Reverse Engineering* (Jones, 2025)
+- *Computational Topology and the Riemann Hypothesis* (Jones, 2026)
 
 ## Five Axioms
 
