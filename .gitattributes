@@ -1,0 +1,5 @@
+# Shell scripts and the directly-executed pipeline scripts run via their
+# shebang, so they must use LF to work on Linux/macOS regardless of the
+# platform this repo was checked out on.
+*.sh text eol=lf
+scripts/*.py text eol=lf
