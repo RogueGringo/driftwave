@@ -1,6 +1,8 @@
 from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+import json
+import os
 import subprocess
 
 import numpy as np
@@ -102,4 +104,42 @@ def build_signals(commits, path_filters, file_cap):
                     [c.ts for c in commits if any(fc.path in keep for fc in c.files)])
     trunc = {"n_files_total": n_total, "n_files_kept": N,
              "file_cap_hit": n_total > file_cap}
+    return data, trunc
+
+
+def _head_sha(repo_dir: str) -> str:
+    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_dir, check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _cache_path(cache_dir: str, repo_dir: str, commit_cap: int) -> str:
+    key = f"{os.path.basename(repo_dir.rstrip('/'))}@{_head_sha(repo_dir)[:12]}_n{commit_cap}"
+    return os.path.join(cache_dir, key)
+
+
+def save_cache(path: str, data: RepoData) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    np.savez(path + ".npz", cochange=data.cochange, churn=data.churn,
+             authorship=data.authorship)
+    with open(path + ".json", "w", encoding="utf-8") as fh:
+        json.dump({"paths": data.paths, "authors": data.authors,
+                   "messages": data.messages, "commit_ts": data.commit_ts}, fh)
+
+
+def load_cache(path: str) -> RepoData:
+    arr = np.load(path + ".npz")
+    with open(path + ".json", encoding="utf-8") as fh:
+        meta = json.load(fh)
+    return RepoData(meta["paths"], arr["cochange"], arr["churn"], meta["authors"],
+                    arr["authorship"], meta["messages"], meta["commit_ts"])
+
+
+def extract(repo_dir, cache_dir, commit_cap, file_cap, path_filters):
+    path = _cache_path(cache_dir, repo_dir, commit_cap)
+    if os.path.exists(path + ".npz") and os.path.exists(path + ".json"):
+        return load_cache(path), {"cached": True}
+    commits = parse_git_log(repo_dir, commit_cap)
+    data, trunc = build_signals(commits, path_filters, file_cap)
+    save_cache(path, data)
+    trunc["cached"] = False
     return data, trunc
