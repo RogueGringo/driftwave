@@ -1,6 +1,9 @@
 from __future__ import annotations
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 import subprocess
+
+import numpy as np
 
 @dataclass
 class FileChange:
@@ -43,9 +46,6 @@ def parse_git_log(repo_dir: str, commit_cap: int) -> list[Commit]:
     commits.reverse()   # oldest-first
     return commits
 
-from collections import Counter, defaultdict
-import numpy as np
-
 @dataclass
 class RepoData:
     paths: list[str]
@@ -70,7 +70,7 @@ def build_signals(commits, path_filters, file_cap):
     paths.sort()
     idx = {p: i for i, p in enumerate(paths)}
     keep = set(paths)
-    authors = sorted({c.author for c in commits})
+    authors = sorted({c.author for c in commits if any(fc.path in keep for fc in c.files)})
     aidx = {a: i for i, a in enumerate(authors)}
     N, A = len(paths), len(authors)
     cochange = np.zeros((N, N), dtype=np.int64)
@@ -99,7 +99,7 @@ def build_signals(commits, path_filters, file_cap):
             authorship[i] /= s
     messages = [" ".join(corpus[i]) for i in range(N)]
     data = RepoData(paths, cochange, churn, authors, authorship, messages,
-                    [c.ts for c in commits])
+                    [c.ts for c in commits if any(fc.path in keep for fc in c.files)])
     trunc = {"n_files_total": n_total, "n_files_kept": N,
              "file_cap_hit": n_total > file_cap}
     return data, trunc
