@@ -104,14 +104,15 @@ That's it. Next time you open Claude Code:
 
 ## The Deeper Layer
 
-Under the hood, driftwave uses the same mathematics that finds structure in prime numbers. Not metaphorically — literally. The clustering algorithm is persistent homology. The quality check is sheaf consistency. The log analysis is a persistence barcode.
+Under the hood, driftwave borrows ideas from the mathematics that finds structure in prime numbers. One part is literal: the file/idea **clustering is H₀ persistent homology** — Union-Find on a distance matrix, real and runnable in `scripts/compute_persistence.py`. The layers above it — the "sheaf consistency" quality check and "H₁ loop" detection — are **LLM-driven heuristics inspired by** those ideas, not computed topology. So: real math at H₀, a useful metaphor above it.
 
 You don't need to know any of that. The commands work whether you understand the math or not. But if you're curious:
 
-- [VISION.md](VISION.md) — the geometric theory of why this works
-- [PROTOCOL.md](PROTOCOL.md) — the full engineering spec
+- [VISION.md](VISION.md) — the geometric theory and vision (read as direction; includes ideas not yet built)
+- [PROTOCOL.md](PROTOCOL.md) — the engineering spec
+- [ROADMAP.md](ROADMAP.md) — what ships today vs. what's planned (H₁/Betti computation, speculative-reject capture, local-LLM routing, and the live dashboard are **not yet built**)
 
-The short version: when you look at what's there, parse what's asked, and compute the gap — you're doing topology on your project. You're finding the persistent structure (what's real) and filtering the noise (what's not). The math just makes it precise.
+The short version: when you look at what's there, parse what's asked, and find the gap — you're finding the persistent structure (what's real) and filtering the noise. The H₀ math makes that one step precise; the rest is disciplined habit.
 
 ## Five Habits
 

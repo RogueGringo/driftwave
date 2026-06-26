@@ -7,9 +7,13 @@ description: "Use when L1 filtering is complete and you need to synthesize coher
 
 The ascent from persistent clusters to coherent architecture.
 
-## L2: H₁ Topology — Loop Detection and Design Coherence
+> Note: at L2/L3 the "H₁ loops" and "sheaf consistency" below are **LLM-driven
+> heuristics inspired by** those concepts — judgment calls, not computed homology
+> or a real Laplacian kernel. Only L1's H₀ clustering is actually computed.
 
-After L1 selects a module (approach), H₁ persistent homology detects loops — closed paths that represent:
+## L2: Loop Detection and Design Coherence (H₁ analogy)
+
+After L1 selects an approach, the agent looks for "loops" — cross-references where one section depends on another (an H₁ analogy; not computed homology) — representing:
 - Internal consistency constraints
 - Circular dependencies that must resolve
 - Coherence structures (architecture → data flow → error handling → testing → architecture)

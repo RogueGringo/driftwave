@@ -21,7 +21,7 @@ const axioms = [
   },
   {
     id: 5, name: 'ADAPTIVE_SCALE', short: 'Data-Driven Thresholds',
-    desc: 'epsilon_max is always extracted from the data\'s own geometry (95th percentile of pairwise distances). Never fixed by the user.',
+    desc: 'The cluster threshold is extracted from the data\'s own geometry — the median persistence lifetime of the H₀ bars. Never fixed by the user.',
     color: 'var(--color-primary)',
   },
 ]

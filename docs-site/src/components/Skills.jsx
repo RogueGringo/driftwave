@@ -1,10 +1,10 @@
 const skills = [
   { name: '/dw-map', layer: 'L0', desc: 'Raw artifact ingestion with entropy gate. Preserves full variance.', color: 'var(--color-text-faint)' },
   { name: '/dw-filter', layer: 'L1', desc: 'H₀ persistent clustering and module routing. Adaptive epsilon.', color: 'var(--color-teal)' },
-  { name: '/dw-ascend', layer: 'L2/L3', desc: 'Gini routing, sheaf-valued synthesis, ker(L_F) convergence.', color: 'var(--color-primary)' },
+  { name: '/dw-ascend', layer: 'L2/L3', desc: 'Gini-routed synthesis with an LLM consistency review (sheaf-inspired).', color: 'var(--color-primary)' },
   { name: '/wavefront', layer: 'ALL', desc: 'Full pipeline orchestrator. Enforces all 5 axioms end-to-end.', color: 'var(--color-success)' },
   { name: '/topological-brainstorm', layer: 'ALL', desc: 'Brainstorming-as-filtration. Idea-spaces as point clouds.', color: 'var(--color-primary)' },
-  { name: '/boundary-mode', layer: 'L3', desc: 'Cross-system collaboration at sheaf-valued abstraction level.', color: 'var(--color-teal)' },
+  { name: '/boundary-mode', layer: 'L3', desc: 'Cross-system collaboration at a higher abstraction level.', color: 'var(--color-teal)' },
 ]
 
 export default function Skills() {

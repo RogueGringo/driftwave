@@ -9,18 +9,18 @@ const layers = [
     id: 'L1', name: 'Persistent Clustering', command: '/dw-filter', color: 'var(--color-teal)',
     image: 'Vietoris-Rips_simplicial_complex_over_zeta_zeros.jpg',
     desc: 'Vietoris-Rips filtration identifies stable H₀ clusters. Long bars = real modules. Short bars = noise.',
-    detail: 'Adaptive scale: epsilon_max = 95th percentile of pairwise distances. Number of clusters determined by data geometry, not fixed.',
+    detail: 'Adaptive scale: the cluster threshold is the median persistence lifetime of the H₀ bars. Number of clusters determined by data geometry, not fixed.',
   },
   {
     id: 'L2', name: 'Topological Synthesis', command: '/dw-ascend', color: 'var(--color-primary)',
     image: 'Betti_number_evolution_curves_—_zeta_vs_GUE_vs_Poisson.jpg',
-    desc: 'H₁ persistent loops detect coherence constraints. Gini trajectory monitors quality in real-time.',
+    desc: 'Cross-section consistency is checked by an LLM — an "H₁ loop" analogy, not computed homology. The Gini trajectory tracks how the structure hierarchifies.',
     detail: 'Positive Gini slope → ASCEND. Negative → REPROBE. Waypoints > 3 → SPLIT. Shape dominates count.',
   },
   {
     id: 'L3', name: 'Sheaf-Valued Review', command: '/dw-ascend --sheaf', color: 'var(--color-success)',
     image: 'Sheaf_fiber_bundle_over_simplicial_complex_—_gauge_connectio.jpg',
-    desc: 'Output carries algebraic structure. Lie algebra fibers over the Rips complex. ker(L_F) = global consistency.',
+    desc: 'An LLM reviews whether the parts compose globally — a sheaf-consistency analogy, not a computed Laplacian kernel.',
     detail: 'Local sections must be compatible under restriction maps. Iterate until convergence. Surface to human if obstruction is fundamental.',
   },
 ]
