@@ -3,6 +3,7 @@ import numpy as np
 from scipy.spatial.distance import squareform, pdist
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_distances
+from .extract import RepoData
 
 def cochange_distance(cochange: np.ndarray) -> np.ndarray:
     occ = np.diag(cochange).astype(float)
@@ -40,12 +41,14 @@ def normalize(D: np.ndarray) -> np.ndarray:
     order = vals.argsort().argsort().astype(float)      # ranks 0..m-1
     if len(vals) > 1:
         order /= (len(vals) - 1)
-    Z = np.zeros_like(D)
+    else:
+        order[:] = 1.0   # single pair: no ordering possible -> treat as maximally distant
+    Z = np.zeros(D.shape, dtype=float)
     Z[iu] = order
     Z = Z + Z.T
     return Z
 
-def per_signal(data, message_method: str = "tfidf") -> dict:
+def per_signal(data: RepoData, message_method: str = "tfidf") -> dict:
     return {
         "co_change": normalize(cochange_distance(data.cochange)),
         "message": normalize(message_distance(data.messages, message_method)),
