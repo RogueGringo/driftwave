@@ -1,8 +1,10 @@
 from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+import hashlib
 import json
 import os
+from pathlib import Path
 import subprocess
 
 import numpy as np
@@ -112,8 +114,12 @@ def _head_sha(repo_dir: str) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
-def _cache_path(cache_dir: str, repo_dir: str, commit_cap: int) -> str:
-    key = f"{os.path.basename(repo_dir.rstrip('/'))}@{_head_sha(repo_dir)[:12]}_n{commit_cap}"
+def _cache_path(cache_dir: str, repo_dir: str, commit_cap: int,
+                file_cap: int, path_filters: list[str]) -> str:
+    name = Path(repo_dir).name
+    cfg = f"{file_cap}|" + "|".join(sorted(path_filters))
+    cfg_h = hashlib.sha256(cfg.encode()).hexdigest()[:8]
+    key = f"{name}@{_head_sha(repo_dir)[:12]}_n{commit_cap}_{cfg_h}"
     return os.path.join(cache_dir, key)
 
 
@@ -127,15 +133,16 @@ def save_cache(path: str, data: RepoData) -> None:
 
 
 def load_cache(path: str) -> RepoData:
-    arr = np.load(path + ".npz")
+    with np.load(path + ".npz") as arr:
+        cochange, churn, authorship = arr["cochange"], arr["churn"], arr["authorship"]
     with open(path + ".json", encoding="utf-8") as fh:
         meta = json.load(fh)
-    return RepoData(meta["paths"], arr["cochange"], arr["churn"], meta["authors"],
-                    arr["authorship"], meta["messages"], meta["commit_ts"])
+    return RepoData(meta["paths"], cochange, churn, meta["authors"],
+                    authorship, meta["messages"], meta["commit_ts"])
 
 
 def extract(repo_dir, cache_dir, commit_cap, file_cap, path_filters):
-    path = _cache_path(cache_dir, repo_dir, commit_cap)
+    path = _cache_path(cache_dir, repo_dir, commit_cap, file_cap, path_filters)
     if os.path.exists(path + ".npz") and os.path.exists(path + ".json"):
         return load_cache(path), {"cached": True}
     commits = parse_git_log(repo_dir, commit_cap)
