@@ -1,0 +1,7 @@
+repos:
+  - {name: ripgrep,   url: https://github.com/BurntSushi/ripgrep,   category: aaa-oss, commit_cap: 1500}
+  - {name: fd,        url: https://github.com/sharkdp/fd,           category: aaa-oss, commit_cap: 1500}
+  - {name: httpie,    url: https://github.com/httpie/cli,           category: mixed,   commit_cap: 1500}
+  - {name: rich,      url: https://github.com/Textualize/rich,      category: mixed,   commit_cap: 1500}
+  - {name: flask,     url: https://github.com/pallets/flask,        category: aaa-oss, commit_cap: 1500}
+  - {name: typer,     url: https://github.com/fastapi/typer,        category: mixed,   commit_cap: 1500}
