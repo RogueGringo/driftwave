@@ -85,15 +85,6 @@ Over time, patterns emerge. Ideas that keep coming back session after session â€
 
 ## Install
 
-**From the JTopo plugin marketplace (recommended):**
-
-```bash
-claude plugin marketplace add RogueGringo/JTopo
-claude plugin install driftwave@jtopo-plugins
-```
-
-**Standalone one-liner** (mirror repo, same plugin):
-
 ```bash
 claude plugin marketplace add RogueGringo/driftwave
 claude plugin install driftwave@driftwave
