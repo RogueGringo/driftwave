@@ -144,6 +144,6 @@ The tools are ready. The models are ready. The process was missing. Now it's not
 
 ---
 
-*Built by Aaron Jones. Powered by algebraic topology and the habit of looking before you leap.*
+*Built by B. Jones. Powered by algebraic topology and the habit of looking before you leap.*
 
-*All work is non-published private minus the public repos associated with company and name. All rights reserved.*
+*Licensed under the [MIT License](LICENSE).*

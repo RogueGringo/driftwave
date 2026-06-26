@@ -16,7 +16,7 @@ const axioms = [
   },
   {
     id: 4, name: 'SHAPE_OVER_COUNT', short: 'Gini > Betti',
-    desc: 'The Gini trajectory of topological evolution matters more than feature count. 3 coherent sections outperform 12 scattered ones. r = 0.935 validated.',
+    desc: 'The Gini trajectory of topological evolution matters more than feature count. 3 coherent sections outperform 12 scattered ones.',
     color: 'var(--color-success)',
   },
   {

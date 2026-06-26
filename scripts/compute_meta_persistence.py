@@ -45,7 +45,8 @@ def session_feature_vector(session: dict) -> np.ndarray:
     n_clusters = len(clusters)
     mean_bar = np.mean([b["death"] - b["birth"]
                         for b in barcode
-                        if b.get("death", float("inf")) != float("inf")] or [0])
+                        if not b.get("infinite")
+                        and isinstance(b.get("death"), (int, float))] or [0])
 
     # L2 features
     synthesis = artifacts.get("synthesis_map", {})
@@ -128,14 +129,17 @@ def compute_h0_persistence(D: np.ndarray) -> list[dict]:
     for eps, i, j in edges:
         union(i, j, eps)
 
+    # Infinite meta-bars: serialize death/bar_length as JSON null + "infinite"
+    # flag so the artifact is valid JSON (no bare Infinity token).
     for comp in births:
         barcodes.append({
             "birth_session": str(comp),
             "death_session": "∞",
             "birth": float(births[comp]),
-            "death": float("inf"),
+            "death": None,
             "dimension": 0,
-            "bar_length": float("inf")
+            "bar_length": None,
+            "infinite": True
         })
 
     return barcodes

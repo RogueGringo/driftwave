@@ -94,12 +94,16 @@ def compute_h0_persistence(D: np.ndarray) -> list[dict]:
     for eps, i, j in edges:
         union(i, j, eps)
 
-    # Remaining components live forever
+    # Remaining components live forever (infinite persistence).
+    # Serialize the infinite death as JSON null + an "infinite" flag: a bare
+    # Infinity token is invalid JSON and is rejected by strict parsers
+    # (e.g. JavaScript JSON.parse, jq), which breaks every downstream consumer.
     for comp in births:
         barcodes.append({
             "birth": float(births[comp]),
-            "death": float("inf"),
-            "dimension": 0
+            "death": None,
+            "dimension": 0,
+            "infinite": True
         })
 
     return barcodes
@@ -113,14 +117,15 @@ def identify_clusters(D: np.ndarray, barcodes: list[dict],
     median lifetime. These correspond to real structure; short bars
     are noise.
     """
-    finite_bars = [b for b in barcodes if b["death"] != float("inf")]
+    finite_bars = [b for b in barcodes if not b.get("infinite")]
     if not finite_bars:
-        # Everything in one cluster
+        # Everything in one cluster (its bar is infinitely persistent)
         return [{
             "id": 0,
             "label": "all",
             "members": [f["path"] for f in files],
-            "bar_length": float("inf"),
+            "bar_length": None,
+            "infinite": True,
             "centroid_description": ""
         }], []
 
@@ -189,6 +194,7 @@ def main():
 
     if n < 2:
         result = {
+            "layer": "L1",
             "barcode": [],
             "distances": [],
             "clusters": [],
@@ -225,6 +231,7 @@ def main():
         routing_reason = f"{n_clusters} stable cluster(s) identified"
 
     result = {
+        "layer": "L1",
         "barcode": barcodes,
         "distances": D.tolist(),
         "clusters": clusters,

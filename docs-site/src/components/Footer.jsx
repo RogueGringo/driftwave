@@ -9,7 +9,7 @@ export default function Footer() {
         fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)',
         color: 'var(--color-text-faint)', letterSpacing: '0.06em',
       }}>
-        driftwave — Aaron Jones, 2026
+        driftwave — B. Jones, 2026
         <br />
         <span style={{ color: 'var(--color-text-muted)' }}>
           Shape over count. Trajectory over snapshot.

@@ -17,7 +17,8 @@
           "id": { "type": "integer" },
           "label": { "type": "string" },
           "members": { "type": "array", "items": { "type": "string" } },
-          "bar_length": { "type": "number", "description": "Persistence — longer = more real" },
+          "bar_length": { "type": ["number", "null"], "description": "Persistence — longer = more real; null when the bar is infinitely persistent (see 'infinite')" },
+          "infinite": { "type": "boolean", "description": "true when this cluster's bar never dies (bar_length is null)" },
           "centroid_description": { "type": "string" }
         }
       }
@@ -29,8 +30,9 @@
         "required": ["birth", "death", "dimension"],
         "properties": {
           "birth": { "type": "number" },
-          "death": { "type": "number" },
-          "dimension": { "type": "integer" }
+          "death": { "type": ["number", "null"], "description": "null when the bar is infinitely persistent (see 'infinite')" },
+          "dimension": { "type": "integer" },
+          "infinite": { "type": "boolean", "description": "true when the component never dies (death is null)" }
         }
       }
     },
