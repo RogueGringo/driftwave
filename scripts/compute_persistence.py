@@ -173,15 +173,28 @@ def identify_clusters(D: np.ndarray, barcodes: list[dict],
         if len(members) == 1:
             noise.append(member_paths[0])
         else:
-            # Find the bar_length for this cluster (longest bar involving its members)
-            max_bar = max(lifetimes) if lifetimes else 0
-            clusters.append({
+            # Per-cluster persistence (H0): a cluster — a connected component at
+            # eps_cut — "dies" when single-linkage first merges it with anything
+            # outside it, i.e. the minimum distance from a member to a non-member.
+            # Births are 0, so bar_length is that boundary distance. (Previously
+            # every cluster was given the GLOBAL max lifetime, so all clusters
+            # reported identical persistence and node sizing was meaningless —
+            # issue #15.)
+            member_set = set(members)
+            outside = [k for k in range(n) if k not in member_set]
+            cluster = {
                 "id": cid,
                 "label": f"cluster_{cid}",
                 "members": member_paths,
-                "bar_length": float(max_bar),
-                "centroid_description": ""
-            })
+            }
+            if outside:
+                cluster["bar_length"] = float(min(D[m, o] for m in members for o in outside))
+            else:
+                # Sole surviving component — infinitely persistent.
+                cluster["bar_length"] = None
+                cluster["infinite"] = True
+            cluster["centroid_description"] = ""
+            clusters.append(cluster)
             cid += 1
 
     return clusters, noise

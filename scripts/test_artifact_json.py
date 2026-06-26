@@ -105,8 +105,44 @@ def test_single_file_still_valid():
     print("PASS test_single_file_still_valid")
 
 
+def test_per_cluster_bar_length():
+    """Issue #15: each cluster's bar_length must be its own persistence
+    (single-linkage boundary distance), not the global-max lifetime."""
+    import numpy as np
+    sys.path.insert(0, str(SCRIPTS))
+    import compute_persistence as cp
+
+    # Three tight pairs: A={0,1}, B={2,3}, C={4,5}; intra = 0.1.
+    # Inter-cluster: A-B = 0.5, A-C = 0.9, B-C = 0.6.
+    group = {0: "A", 1: "A", 2: "B", 3: "B", 4: "C", 5: "C"}
+    inter = {("A", "B"): 0.5, ("A", "C"): 0.9, ("B", "C"): 0.6}
+    n = 6
+    D = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = 0.1 if group[i] == group[j] else inter[tuple(sorted((group[i], group[j])))]
+            D[i, j] = D[j, i] = d
+    # Finite lifetimes drive eps_cut = median = 0.1 → only intra-pairs merge.
+    barcodes = [{"birth": 0.0, "death": x, "dimension": 0} for x in (0.1, 0.1, 0.1, 0.5, 0.6)]
+    barcodes.append({"birth": 0.0, "death": None, "dimension": 0, "infinite": True})
+    files = [{"path": f"f{i}"} for i in range(n)]
+
+    clusters, noise = cp.identify_clusters(D, barcodes, files)
+    assert not noise, f"unexpected noise: {noise}"
+    by_group = {group[int(c["members"][0][1:])]: c["bar_length"] for c in clusters}
+    # Expected per-cluster persistence = nearest distance to any outside member.
+    assert abs(by_group["A"] - 0.5) < 1e-9, by_group
+    assert abs(by_group["B"] - 0.5) < 1e-9, by_group
+    assert abs(by_group["C"] - 0.6) < 1e-9, by_group
+    # The bug assigned all clusters one global value — guard against regression.
+    assert len({round(v, 9) for v in by_group.values()}) > 1, \
+        "clusters must not all share a single global bar_length"
+    print("PASS test_per_cluster_bar_length")
+
+
 if __name__ == "__main__":
     test_persistence()
     test_meta_persistence()
     test_single_file_still_valid()
+    test_per_cluster_bar_length()
     print("\nAll artifact-JSON tests passed.")
