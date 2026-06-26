@@ -94,6 +94,7 @@ export default function Pipeline() {
                 aspectRatio: '4/3', boxShadow: 'var(--shadow-lg)', direction: 'ltr',
               }}>
                 <img src={`${import.meta.env.BASE_URL}images/${l.image}`} alt={l.name}
+                  loading="lazy" decoding="async"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             </div>
