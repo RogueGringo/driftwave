@@ -62,8 +62,11 @@
           "birth_session": { "type": "string" },
           "death_session": { "type": "string" },
           "feature": { "type": "string", "description": "What persisted (cluster label, design pattern, etc.)" },
+          "birth": { "type": "number" },
+          "death": { "type": ["number", "null"] },
           "dimension": { "type": "integer" },
-          "bar_length": { "type": "number" }
+          "bar_length": { "type": ["number", "null"], "description": "null when infinitely persistent (see 'infinite')" },
+          "infinite": { "type": "boolean" }
         }
       }
     },

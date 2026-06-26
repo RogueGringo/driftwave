@@ -27,7 +27,7 @@ The Gini trajectory — how the hierarchy of topological features evolves — do
 | Within +/- 0.01 | **HOLD** | Stable — maintain current level, await new input |
 | Waypoints > 3 | **SPLIT** | Dimensional branch — decompose into independent sub-problems |
 
-**Positive Gini trajectory correlates with quality.** Validated at r=0.935 across four LLM architectures. A design with 3 deeply coherent sections (positive slope) outperforms one with 12 scattered sections (negative slope).
+**Positive Gini trajectory tends to track design quality.** A design with 3 deeply coherent sections (positive slope) outperforms one with 12 scattered sections (negative slope).
 
 ## L3: Sheaf-Valued Synthesis
 

@@ -75,7 +75,6 @@ export default function Hero() {
             { value: '4', label: 'Abstraction Layers' },
             { value: '5', label: 'Governing Axioms' },
             { value: '6', label: 'Skills' },
-            { value: '0.935', label: 'Cross-Model r' },
           ].map(s => (
             <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
               <span style={{
