@@ -83,23 +83,49 @@ Over time, patterns emerge. Ideas that keep coming back session after session �
 | `/driftwave:synthesize` | Design (what to build) |
 | `/driftwave:review` | Check (does it all fit together) |
 
-## Install
+> Full capability matrix — every command, agent, skill, and script with its
+> **operational status** (works / heuristic / planned): [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
+
+## Quickstart (5 minutes)
+
+**1. Install** — no dependencies for the core loop:
 
 ```bash
 claude plugin marketplace add RogueGringo/driftwave
 claude plugin install driftwave@driftwave
 ```
 
-That's it. Next time you open Claude Code:
+**2. Run your first directive** — the only command you need to start:
 
 ```
-/driftwave:directive <what you want>
+/driftwave:directive add a /health endpoint that returns status JSON
 ```
+
+**3. Read the map before anything changes.** Driftwave looks first and shows you the gap:
+
+```
+WHAT IS:      Express app, 12 routes, no /health route
+WHAT'S ASKED: A GET /health returning 200 + { status, uptime }
+THE GAP:
+  1. Add GET /health route
+  2. Return { status: "ok", uptime }
+  3. Confirm it returns 200
+Proceed? (y)
+```
+
+**4. Say `y`.** It does the work, logs each step to `/tmp/dw-artifacts/directive.log`, and verifies it worked. Don't like the plan? Say `n` or `adjust`.
+
+That's the whole loop — and it works on more than code:
+
+```
+/driftwave:directive figure out why the test in auth.spec.js is flaky
+```
+
+> **The only two commands you need to start are `/driftwave:directive` and `/driftwave:status`.** Everything in the **Commands** table above is for when a task grows big enough to want the full analysis pipeline — ignore it until then.
 
 > **Optional — the analysis pipeline.** `/driftwave:run`, `/driftwave:filter`, and
-> `/driftwave:meta` can shell out to Python scripts that compute persistent
-> homology. Those need `numpy` — run `pip install numpy` (the same dependency is
-> pinned in `scripts/requirements.txt` for repo/dev installs). The core
+> `/driftwave:meta` shell out to Python that computes H₀ persistent homology. Those
+> need `numpy` (`pip install numpy`; pinned in `scripts/requirements.txt`). The core
 > `/driftwave:directive` loop has no Python dependency.
 
 ## The Deeper Layer
