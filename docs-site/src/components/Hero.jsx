@@ -48,9 +48,9 @@ export default function Hero() {
           fontSize: 'var(--text-lg)', color: 'var(--color-text-muted)',
           maxWidth: '58ch', marginBottom: 'var(--space-10)', lineHeight: 1.65,
         }}>
-          A Claude Code plugin that operationalizes sheaf-valued persistent homology
-          as a cognitive pipeline. Five axioms. Four abstraction layers. One principle:
-          shape over count.
+          A Claude Code plugin built around H₀ persistent-homology clustering, with
+          topology-inspired checks layered above. Five axioms. Four layers.
+          One principle: shape over count.
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-12)' }}>

@@ -1,5 +1,12 @@
 # Driftwave — Vision
 
+> **Status: theory & vision.** This document is the conceptual framing and direction
+> — *including ideas not yet built* (real H₁/Betti computation, speculative-reject
+> capture, local-LLM routing, a live dashboard). What ships today is the
+> `/driftwave:directive` loop plus H₀ persistent-homology clustering; everything
+> above H₀ is an LLM-driven heuristic. See [ROADMAP.md](ROADMAP.md) for the
+> built-vs-planned line, and the [README](README.md) for the plain-language version.
+
 ## What This Actually Is
 
 Driftwave is not a Claude Code plugin. That's what it runs as. What it IS:

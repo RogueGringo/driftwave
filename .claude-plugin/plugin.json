@@ -1,7 +1,7 @@
 {
   "name": "driftwave",
   "version": "0.1.0",
-  "description": "Adaptive Topological Field Theory operationalized as a cognitive pipeline. Implements sheaf-valued persistent homology across four abstraction layers (L0-L3) with five governing axioms: NO_AVERAGING, UPWARD_FLOW, WAYPOINT_ROUTING, SHAPE_OVER_COUNT, ADAPTIVE_SCALE.",
+  "description": "A look-before-you-act coding loop for Claude Code: check what's there, what's asked, and the gap — then do it and verify. Clusters artifacts with H₀ persistent homology (real); the higher 'sheaf'/'H₁' layers are topology-inspired LLM heuristics. Guided by five axioms: NO_AVERAGING, UPWARD_FLOW, WAYPOINT_ROUTING, SHAPE_OVER_COUNT, ADAPTIVE_SCALE.",
   "author": {
     "name": "B. Jones"
   },

@@ -8,7 +8,7 @@
     {
       "name": "driftwave",
       "source": ".",
-      "description": "Adaptive Topological Field Theory cognitive pipeline with sheaf-valued persistent homology across four abstraction layers (L0-L3)."
+      "description": "A look-before-you-act coding loop for Claude Code, with an optional H₀ persistent-homology analysis pipeline."
     }
   ]
 }

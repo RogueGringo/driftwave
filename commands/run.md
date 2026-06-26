@@ -51,7 +51,7 @@ After each layer, report:
 
 ## Axiom enforcement
 
-All five axioms are enforced structurally:
+The pipeline is guided by five axioms (some enforced by schema types, others by routing behavior):
 - NO_AVERAGING: RawCloud has no summary field
 - UPWARD_FLOW: Each agent only accepts its layer's input type
 - WAYPOINT_ROUTING: Routing on ASCEND/REPROBE/SPLIT, not on timers
