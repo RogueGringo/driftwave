@@ -6,6 +6,7 @@ from sklearn.metrics import (adjusted_rand_score, normalized_mutual_info_score,
                              homogeneity_score, completeness_score)
 
 def _labeled(pred, true):
+    assert len(pred) == len(true), "pred and true must be the same length"
     p, t = [], []
     for pi, ti in zip(pred, true):
         if ti is not None:
@@ -34,9 +35,9 @@ def paired_sign_test(deltas: list[float]) -> float:
         return 1.0
     return float(binomtest(wins, nz, 0.5, alternative="greater").pvalue)
 
-def bootstrap_delta_ci(pred_a, pred_b, true, n: int = 500, seed: int = 0):
+def bootstrap_delta_ci(pred_a, pred_b, true, n: int = 500, seed: int = 0) -> tuple[float, float]:
     pa, t = _labeled(pred_a, true)
-    pb, _ = _labeled(pred_b, true)
+    pb = _labeled(pred_b, true)[0]
     rng = np.random.default_rng(seed)
     m = len(t)
     deltas = []
