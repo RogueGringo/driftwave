@@ -1,6 +1,6 @@
 {
   "name": "driftwave",
-  "description": "Driftwave — Adaptive Topological Field Theory cognitive pipeline. Standalone install mirror of RogueGringo/JTopo (plugins/driftwave).",
+  "description": "Driftwave — Adaptive Topological Field Theory cognitive pipeline. The canonical home of the driftwave Claude Code plugin.",
   "owner": {
     "name": "B. Jones",
     "email": "b.jones@jtech.ai"

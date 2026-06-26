@@ -6,8 +6,8 @@
     "name": "B. Jones",
     "email": "b.jones@jtech.ai"
   },
-  "homepage": "https://github.com/RogueGringo/JTopo/tree/master/plugins/driftwave",
-  "repository": "https://github.com/RogueGringo/JTopo.git",
+  "homepage": "https://roguegringo.github.io/driftwave/",
+  "repository": "https://github.com/RogueGringo/driftwave.git",
   "license": "MIT",
   "keywords": [
     "topology",
