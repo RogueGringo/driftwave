@@ -14,7 +14,7 @@ Run meta-persistence analysis across session history.
 
 2. Run meta-persistence computation:
    ```bash
-   cat /tmp/dw-artifacts/meta.json | ${CLAUDE_PLUGIN_ROOT}/scripts/compute_meta_persistence.py > /tmp/dw-artifacts/meta_updated.json
+   cat /tmp/dw-artifacts/meta.json | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compute_meta_persistence.py > /tmp/dw-artifacts/meta_updated.json
    mv /tmp/dw-artifacts/meta_updated.json /tmp/dw-artifacts/meta.json
    ```
 

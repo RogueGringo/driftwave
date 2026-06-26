@@ -11,7 +11,7 @@ Run the L1 filtration layer. Takes the RawCloud artifact and finds persistent st
 1. Verify `/tmp/dw-artifacts/raw.json` exists (if not, run `/driftwave:ingest` first)
 2. Run the actual persistence computation:
    ```bash
-   cat /tmp/dw-artifacts/raw.json | ${CLAUDE_PLUGIN_ROOT}/scripts/compute_persistence.py > /tmp/dw-artifacts/persistence.json
+   cat /tmp/dw-artifacts/raw.json | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compute_persistence.py > /tmp/dw-artifacts/persistence.json
    ```
 3. Dispatch the `dw-cluster` agent (sonnet tier) with raw.json + persistence.json
 4. Agent labels clusters with human-readable descriptions
