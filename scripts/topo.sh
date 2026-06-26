@@ -12,7 +12,11 @@
 #    ./topo.sh figure-it-out   Full pipeline: L0→L1→L2→L3→serve
 # ═══════════════════════════════════════════════════════════════
 
-set -euo pipefail
+# No `-e`: this runs as a SessionStart hook and must degrade gracefully, never
+# hard-fail a user's session. The defensive `|| echo` / `[ -d ]` guards below do
+# the error handling; pipefail + `-e` previously turned a missing optional path
+# into an exit-128 abort (issue #8).
+set -uo pipefail
 
 # ─── Design Tokens (Terminal) ───
 RESET="\033[0m"
@@ -28,7 +32,12 @@ BG_SURFACE="\033[48;2;22;20;13m"
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
-PROJECT_ROOT="$(dirname "$(dirname "$PLUGIN_ROOT")")"
+# Resolve the project being worked in. As a Claude Code hook this is provided as
+# CLAUDE_PROJECT_DIR; run manually, fall back to the current repo's git toplevel,
+# then the cwd. The old logic assumed a monorepo layout (<project>/plugins/
+# driftwave) and pointed two dirs above the plugin — a non-git path in standalone
+# installs, which made the scan abort under `set -e` (issue #8).
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 DOCS_SITE="$PLUGIN_ROOT/docs-site"
 # Claude Code stores per-project memory under a slugified absolute project path
 # (path separators and drive colons replaced by '-'). Derive it from PROJECT_ROOT
@@ -401,7 +410,10 @@ cmd_validate() {
 
   # Check all 5 axioms are documented
   local axiom_count
-  axiom_count=$(grep -c "AXIOM\|NO_AVERAGING\|UPWARD_FLOW\|WAYPOINT_ROUTING\|SHAPE_OVER_COUNT\|ADAPTIVE_SCALE" "$PLUGIN_ROOT/README.md" 2>/dev/null || echo "0")
+  # `grep -c || echo 0` double-counts (grep prints "0" AND exits 1 on no match),
+  # producing a "0\n0" value; use `|| true` + default for a single clean number.
+  axiom_count=$(grep -cE "AXIOM|NO_AVERAGING|UPWARD_FLOW|WAYPOINT_ROUTING|SHAPE_OVER_COUNT|ADAPTIVE_SCALE" "$PLUGIN_ROOT/README.md" 2>/dev/null || true)
+  axiom_count=${axiom_count:-0}
   if [ "$axiom_count" -ge 5 ]; then
     ok "All 5 axioms documented in README"
   else
