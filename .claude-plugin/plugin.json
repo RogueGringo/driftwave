@@ -1,6 +1,6 @@
 {
   "name": "driftwave",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Adaptive Topological Field Theory operationalized as a cognitive pipeline. Implements sheaf-valued persistent homology across four abstraction layers (L0-L3) with five governing axioms: NO_AVERAGING, UPWARD_FLOW, WAYPOINT_ROUTING, SHAPE_OVER_COUNT, ADAPTIVE_SCALE.",
   "author": {
     "name": "B. Jones"

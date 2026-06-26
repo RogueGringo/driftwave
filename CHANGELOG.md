@@ -4,6 +4,19 @@ All notable changes to the **driftwave** plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-06-26
+
+### Added
+- **`coherence/`** — multi-channel codebase design-coherence analysis (driftwave's
+  topology applied to real repositories). Encodes files under four distance
+  channels (structure, git co-change, import graph, intent embeddings), runs H₀
+  persistent homology per channel, and scores **cross-channel sheaf-agreement**
+  (Mantel + ARI@k). Includes a temporal meta-persistence view (coherence over
+  commit history) and an optional GPU neural intent channel (`INTENT_MODE=neural`).
+- **`/driftwave:coherence`** command to run the analysis on any repo or corpus.
+- Reference findings + figures from a 10-repo cross-language run (Python / JS /
+  Rust) in `coherence/README.md`.
+
 ## [0.1.0] — 2026-06-24
 
 First packaged, installable release.
@@ -30,4 +43,5 @@ First packaged, installable release.
 - `meta.md` validates its output against `meta_persistence.json` before reporting.
 - Aligned author email between plugin and marketplace manifests.
 
+[0.2.0]: https://github.com/RogueGringo/driftwave/releases/tag/v0.2.0
 [0.1.0]: https://github.com/RogueGringo/JTopo/releases/tag/driftwave-v0.1.0
