@@ -21,10 +21,10 @@ def aggregate(rows: list[dict]) -> dict:
     return {"n_repos": n, "beats_louvain": beats_lou, "beats_ward": beats_war,
             "sign_p_louvain": p_lou, "sign_p_ward": p_war, "verdict": verdict}
 
-def write_report(rows, agg, out_dir):
+def write_report(rows, agg, out_dir, all_rows=None):
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "results.json"), "w", encoding="utf-8") as fh:
-        json.dump({"rows": rows, "aggregate": agg}, fh, indent=2)
+        json.dump({"rows": all_rows if all_rows is not None else rows, "aggregate": agg}, fh, indent=2)
     lines = ["# dw-bench Pass 1 — Structure Recovery Report", "",
              f"**Verdict: {agg['verdict']}**  ",
              f"Repos: {agg['n_repos']} · beats Louvain on {agg['beats_louvain']} "
@@ -32,6 +32,7 @@ def write_report(rows, agg, out_dir):
              f"{agg['beats_ward']} (sign p={agg['sign_p_ward']:.3g})", "",
              "| repo | files | k | combined ARI | louvain | ward | path-prefix | perm p95 |",
              "|---|--:|--:|--:|--:|--:|--:|--:|"]
+    trunc_notes = []
     for r in rows:
         m = r["methods"]
         lines.append(
@@ -39,8 +40,12 @@ def write_report(rows, agg, out_dir):
             f"{m['combined']['ari']:.3f} | {m['louvain']['ari']:.3f} | "
             f"{m['ward']['ari']:.3f} | {m['path_prefix']['ari']:.3f} | "
             f"{r['permutation_p95']:.3f} |")
-        if r["truncation"].get("file_cap_hit"):
-            lines.append(f"  <!-- {r['name']}: file cap hit "
-                         f"({r['truncation']['n_files_total']} files) -->")
+        if r.get("truncation", {}).get("file_cap_hit"):
+            trunc_notes.append(
+                f"- **{r['name']}**: file cap hit — "
+                f"{r['truncation']['n_files_total']} files total, "
+                f"capped to {r['truncation']['n_files_kept']}")
+    if trunc_notes:
+        lines += ["", "### ⚠️ Truncations (coverage limited)", *trunc_notes]
     with open(os.path.join(out_dir, "report.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")

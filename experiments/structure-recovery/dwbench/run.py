@@ -51,8 +51,9 @@ def main(argv=None):
             print(f"[fail] {cfg.name}: {e}")
 
     test_rows = [r for r in rows if r.get("split", "test") == "test"]
-    write_report(test_rows, aggregate(test_rows), args.out)
-    print("verdict:", aggregate(test_rows)["verdict"])
+    final_agg = aggregate(test_rows)
+    write_report(test_rows, final_agg, args.out, all_rows=rows)
+    print("verdict:", final_agg["verdict"])
 
 if __name__ == "__main__":
     main()
