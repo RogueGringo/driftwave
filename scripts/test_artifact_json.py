@@ -140,9 +140,40 @@ def test_per_cluster_bar_length():
     print("PASS test_per_cluster_bar_length")
 
 
+def test_gini_slope_divisor():
+    """Bug #17: gini_slope divided by len(trajectory) instead of len-1.
+
+    A 3-point trajectory [0.0, 0.5, 1.0] spans 2 intervals, so the slope
+    should be (1.0 - 0.0) / 2 = 0.5, not 1.0 / 3 ≈ 0.333.
+    We test this by importing session_feature_vector directly and checking
+    the gini_slope element (index 2) of the returned feature vector.
+    """
+    sys.path.insert(0, str(SCRIPTS))
+    import compute_meta_persistence as cmp
+    import numpy as np
+
+    session = {
+        "artifacts": {
+            "filtered_topology": {"clusters": [], "barcode": []},
+            "synthesis_map": {"trajectory": [0.0, 0.5, 1.0]},
+            "sheaved_verdict": {"kernel_dim": 0},
+        },
+        "routing_trace": [],
+        "speculative_rejects": [],
+    }
+    vec = cmp.session_feature_vector(session)
+    gini_slope = vec[2]
+    assert abs(gini_slope - 0.5) < 1e-9, (
+        f"gini_slope wrong: expected 0.5 (range/2 intervals), got {gini_slope}. "
+        "Divisor must be len(trajectory)-1, not len(trajectory)."
+    )
+    print("PASS test_gini_slope_divisor")
+
+
 if __name__ == "__main__":
     test_persistence()
     test_meta_persistence()
     test_single_file_still_valid()
     test_per_cluster_bar_length()
+    test_gini_slope_divisor()
     print("\nAll artifact-JSON tests passed.")

@@ -40,6 +40,7 @@ These work — but as **LLM judgment** framed in topological language, not liter
 - **A richer distance/feature vector** — today H₀ clusters on
   `[size, staleness, language]`; semantic features would make the clustering
   meaningful. (A structure-recovery experiment to validate this is in design.)
+- **Semantic addressing** — the (context, intent, value) coordinate schema (`schemas/semantic_address.json`) exists but nothing emits or consumes it yet.
 
 ## The honest one-liner
 

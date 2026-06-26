@@ -51,7 +51,7 @@ def session_feature_vector(session: dict) -> np.ndarray:
     # L2 features
     synthesis = artifacts.get("synthesis_map", {})
     trajectory = synthesis.get("trajectory", [])
-    gini_slope = (trajectory[-1] - trajectory[0]) / max(len(trajectory), 1) if trajectory else 0
+    gini_slope = (trajectory[-1] - trajectory[0]) / max(len(trajectory) - 1, 1) if len(trajectory) > 1 else 0
 
     # L3 features
     verdict = artifacts.get("sheaved_verdict", {})

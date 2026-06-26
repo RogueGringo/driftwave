@@ -9,3 +9,6 @@ dist/
 
 # Local model weights
 models/*.gguf
+
+# SDD scratch (briefs/reports/ledger)
+.superpowers/
