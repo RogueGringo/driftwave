@@ -1,12 +1,14 @@
-numpy>=1.26
-scipy>=1.11
-scikit-learn>=1.4
+# Core deps exact-pinned for reproducible benchmark runs (default tfidf path).
+# torch / sentence-transformers / umap-learn are OPTIONAL — only for --message-method embed and UMAP plots — kept minimum-bounded.
+numpy==2.4.2
+scipy==1.17.1
+scikit-learn==1.8.0
+networkx==3.6.1
+python-louvain==0.16
+pyyaml==6.0.3
+pandas==3.0.1
+matplotlib==3.10.9
+pytest==9.0.2
 sentence-transformers>=2.6
 torch>=2.2
-networkx>=3.2
-python-louvain>=0.16
-matplotlib>=3.8
 umap-learn>=0.5
-pyyaml>=6.0
-pandas>=2.2
-pytest>=8.0

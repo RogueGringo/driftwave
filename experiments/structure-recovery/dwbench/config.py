@@ -12,7 +12,7 @@ class RepoConfig:
     file_cap: int = 1500
     label_strategy: str = "top_level_dir"
     path_filters: list[str] = field(default_factory=list)
-    weights: dict | None = None
+    weights: dict[str, float] | None = None
 
 
 def load_repos(path: str) -> list[RepoConfig]:
