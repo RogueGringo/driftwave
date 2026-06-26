@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from scipy.spatial.distance import squareform, pdist
+from scipy.stats import rankdata
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_distances
 from .extract import RepoData
@@ -38,11 +39,11 @@ def normalize(D: np.ndarray) -> np.ndarray:
     N = D.shape[0]
     iu = np.triu_indices(N, 1)
     vals = D[iu]
-    order = vals.argsort().argsort().astype(float)      # ranks 0..m-1
+    order = rankdata(vals, method="average") - 1.0   # tied values share the mean rank
     if len(vals) > 1:
         order /= (len(vals) - 1)
     else:
-        order[:] = 1.0   # single pair: no ordering possible -> treat as maximally distant
+        order[:] = 1.0
     Z = np.zeros(D.shape, dtype=float)
     Z[iu] = order
     Z = Z + Z.T

@@ -18,7 +18,8 @@ def recovery(pred, true) -> dict:
     return {"ari": float(adjusted_rand_score(t, p)),
             "nmi": float(normalized_mutual_info_score(t, p)),
             "homogeneity": float(homogeneity_score(t, p)),
-            "completeness": float(completeness_score(t, p))}
+            "completeness": float(completeness_score(t, p)),
+            "n_clusters": int(len(np.unique(p)))}
 
 def permutation_p95(pred, true, n: int = 200, seed: int = 0) -> float:
     p, t = _labeled(pred, true)

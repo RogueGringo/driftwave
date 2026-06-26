@@ -38,3 +38,12 @@ def test_authorship_distance_shape_symmetry():
     assert D.shape == (3, 3)
     assert np.allclose(D, D.T)
     assert (D >= -1e-9).all()
+
+def test_normalize_ties_get_equal_values():
+    import numpy as np
+    from dwbench.distance import normalize
+    # off-diagonal pairs (0,1) and (0,2) are tied at 5; (1,2) is 9
+    D = np.array([[0,5,5],[5,0,9],[5,9,0]], dtype=float)
+    Z = normalize(D)
+    assert abs(Z[0,1] - Z[0,2]) < 1e-12     # tied inputs -> equal normalized values
+    assert Z[1,2] > Z[0,1]                    # the larger distance ranks higher

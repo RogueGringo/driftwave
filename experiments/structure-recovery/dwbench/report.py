@@ -11,17 +11,20 @@ def aggregate(rows: list[dict]) -> dict:
     beats_war = sum(1 for d in d_war if d > 0)
     p_lou = paired_sign_test(d_lou)
     p_war = paired_sign_test(d_war)
+    clears = [r for r in rows if r["methods"]["combined"]["ari"] > r["permutation_p95"]]
+    clears_floor = len(clears)
     majority = n / 2
-    if beats_lou > majority and beats_war > majority and p_lou < 0.05 and p_war < 0.05:
-        verdict = "beats-controls"
-    elif beats_lou >= 1 or beats_war >= 1:
-        verdict = "ties-controls"
-    else:
+    if clears_floor <= majority:
         verdict = "fails"
+    elif beats_lou > majority and beats_war > majority and p_lou < 0.05 and p_war < 0.05:
+        verdict = "beats-controls"
+    else:
+        verdict = "ties-controls"
     return {"n_repos": n, "beats_louvain": beats_lou, "beats_ward": beats_war,
-            "sign_p_louvain": p_lou, "sign_p_ward": p_war, "verdict": verdict}
+            "sign_p_louvain": p_lou, "sign_p_ward": p_war, "verdict": verdict,
+            "clears_floor": clears_floor}
 
-def write_report(rows, agg, out_dir, all_rows=None):
+def write_report(rows, agg, out_dir, all_rows=None, excluded=None):
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "results.json"), "w", encoding="utf-8") as fh:
         json.dump({"rows": all_rows if all_rows is not None else rows, "aggregate": agg}, fh, indent=2)
@@ -47,5 +50,7 @@ def write_report(rows, agg, out_dir, all_rows=None):
                 f"capped to {r['truncation']['n_files_kept']}")
     if trunc_notes:
         lines += ["", "### ⚠️ Truncations (coverage limited)", *trunc_notes]
+    if excluded:
+        lines += ["", "### Excluded repos (below min size)", *[f"- {n}" for n in excluded]]
     with open(os.path.join(out_dir, "report.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")

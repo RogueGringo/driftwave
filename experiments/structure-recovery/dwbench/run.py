@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse, json, os, subprocess
 from .config import load_repos
 from .split import assign_split
-from .analyze import analyze_repo
+from .analyze import analyze_repo, RepoTooSmall
 from .report import aggregate, write_report
 
 def _clone(url: str, dest: str) -> str:
@@ -36,6 +36,7 @@ def main(argv=None):
     repo_root = os.path.join(args.cache, "repos")
     os.makedirs(repo_root, exist_ok=True)
     rows = list(done.values())
+    excluded = []
     for cfg in repos:
         if cfg.name in done:
             print(f"[skip] {cfg.name}")
@@ -47,12 +48,16 @@ def main(argv=None):
             rows.append(row)
             write_report(rows, aggregate(rows), args.out)   # checkpoint each repo
             print(f"[ok] {cfg.name} combined ARI={row['methods']['combined']['ari']:.3f}")
+        except RepoTooSmall as e:
+            print(f"[skip-small] {e}")
+            excluded.append(cfg.name)
+            continue
         except Exception as e:  # noqa: BLE001 — one repo must not sink the run
             print(f"[fail] {cfg.name}: {e}")
 
     test_rows = [r for r in rows if r.get("split", "test") == "test"]
     final_agg = aggregate(test_rows)
-    write_report(test_rows, final_agg, args.out, all_rows=rows)
+    write_report(test_rows, final_agg, args.out, all_rows=rows, excluded=excluded)
     print("verdict:", final_agg["verdict"])
 
 if __name__ == "__main__":

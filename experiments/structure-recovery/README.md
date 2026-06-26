@@ -25,3 +25,4 @@ architecture. See `../../docs/superpowers/specs/2026-06-25-dw-bench-structure-re
 - The per-signal columns (in `results.json`) are the ablation — they show whether
   message/churn/authorship add anything over co-change alone.
 - For an embedding run: `--message-method embed` (slower; downloads all-MiniLM-L6-v2).
+- Louvain runs at its native (modularity-optimal) cluster count, not cut to k; its n_clusters is reported per method for context.

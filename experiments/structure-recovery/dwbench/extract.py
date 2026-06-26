@@ -27,9 +27,12 @@ _SEP = "\x1e"  # record separator unlikely to appear in messages
 
 def parse_git_log(repo_dir: str, commit_cap: int) -> list[Commit]:
     fmt = f"{_SEP}%H%x1f%at%x1f%an%x1f%s"
+    # --no-renames: prevents "old => new" rename rows that would become phantom files.
+    # core.quotePath=false: prevents octal-quoted non-ASCII paths that would mismatch
+    # file lookup keys built from the raw path strings.
     out = subprocess.run(
-        ["git", "log", f"-n{commit_cap}", "--no-merges", "--numstat",
-         f"--pretty=format:{fmt}"],
+        ["git", "-c", "core.quotePath=false", "log", "--no-renames",
+         f"-n{commit_cap}", "--no-merges", "--numstat", f"--pretty=format:{fmt}"],
         cwd=repo_dir, check=True, capture_output=True, text=True, encoding="utf-8",
     ).stdout
     commits: list[Commit] = []
