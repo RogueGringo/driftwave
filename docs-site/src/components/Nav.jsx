@@ -23,6 +23,7 @@ export default function Nav() {
         maxWidth: 'var(--content-wide)', margin: '0 auto',
         padding: 'var(--space-4) var(--space-6)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap',
       }}>
         <a href="#" style={{
           textDecoration: 'none', color: 'var(--color-text)',
@@ -33,7 +34,15 @@ export default function Nav() {
           <span style={{ color: 'var(--color-primary)' }}>~</span> driftwave
         </a>
 
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
+        <button
+          className="dw-nav-menu-btn"
+          aria-label="Toggle menu"
+          onClick={() => setMenuOpen(o => !o)}
+        >
+          {menuOpen ? '✕' : '☰'}
+        </button>
+
+        <nav className={`dw-nav-links${menuOpen ? ' open' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
           {sections.map(s => (
             <a key={s} href={`#${s.toLowerCase()}`} style={{
               fontSize: 'var(--text-sm)', fontWeight: 500,
@@ -41,7 +50,7 @@ export default function Nav() {
               letterSpacing: '0.025em', textTransform: 'uppercase',
             }}>{s}</a>
           ))}
-          <button onClick={toggle} style={{
+          <button onClick={toggle} aria-label="Toggle theme" style={{
             width: 40, height: 40, display: 'flex', alignItems: 'center',
             justifyContent: 'center', borderRadius: 'var(--radius-full)',
             color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer',
