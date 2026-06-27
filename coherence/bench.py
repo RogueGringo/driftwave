@@ -17,7 +17,7 @@ Channels
 Usage:  python bench.py [name=giturl ...]
 """
 from __future__ import annotations
-import os, re, sys, json, math, subprocess
+import os, re, sys, json, math, shutil, subprocess
 from collections import Counter, defaultdict
 import numpy as np
 import matplotlib
@@ -42,9 +42,11 @@ EXCLUDE = {".git", "node_modules", "dist", "build", "__pycache__", ".venv",
            "venv", "vendor", "target", ".pytest_cache", ".mypy_cache", ".tox",
            "site-packages", ".idea", "docs-site"}
 PY_IMP = re.compile(r'^\s*(?:from\s+([.\w]+)\s+import|import\s+([.\w]+))', re.M)
-JS_IMP = re.compile(r'''(?:import[^'"]*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"])''')
+JS_IMP = re.compile(r'''(?:import[^'"]*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\))''')
 RS_IMP = re.compile(r'^\s*(?:pub\s+)?(?:use|mod)\s+([\w:]+)', re.M)
 TOKEN = re.compile(r'[A-Za-z_][A-Za-z0-9_]{2,}')
+# structure-channel weights: (path-tree geodesic, log-size delta, language mismatch)
+STRUCT_W = (0.6, 0.25, 0.15)
 
 
 def run(cmd, cwd=None):
@@ -59,15 +61,24 @@ def read_file(path, maxbytes=120000):
         return ""
 
 
+def _safe_name(name):
+    """Constrain a corpus name to a safe basename (no path traversal)."""
+    return re.sub(r"[^A-Za-z0-9._-]", "_", name).strip("._") or "repo"
+
+
 def clone(name, url):
-    dest = os.path.join(REPOS, name)
+    dest = os.path.join(REPOS, _safe_name(name))
     if os.path.isdir(os.path.join(dest, ".git")):
         return dest
     os.makedirs(REPOS, exist_ok=True)
     print(f"  cloning {name} ...", flush=True)
     r = run(["git", "clone", "--quiet", "--filter=blob:none", url, dest])
-    if r.returncode != 0:  # fall back to a normal clone
+    if r.returncode != 0:  # a partial dir blocks the retry — clear it, then fall back
+        shutil.rmtree(dest, ignore_errors=True)
         run(["git", "clone", "--quiet", url, dest])
+    if not os.path.isdir(os.path.join(dest, ".git")):
+        print(f"  [error] clone failed: {name} ({url})")
+        return None
     return dest
 
 
@@ -149,7 +160,7 @@ def m_structure(files, repo):
                 else:
                     break
             pathd = (len(ci) + len(cj) - 2 * common) / max(1, len(ci) + len(cj))
-            d = 0.6 * pathd + 0.25 * abs(logs[i] - logs[j]) + 0.15 * (langs[i] != langs[j])
+            d = STRUCT_W[0] * pathd + STRUCT_W[1] * abs(logs[i] - logs[j]) + STRUCT_W[2] * (langs[i] != langs[j])
             D[i, j] = D[j, i] = d
     return normalize01(D)
 
@@ -210,11 +221,13 @@ def m_imports(files, repo):
             key = parts[-1]
             for t, base in enumerate(bases):
                 if t != i and (base.split("/")[-1] == key or base.endswith("/" + key)):
-                    A[i, t] = A[t, i] = 1
+                    A[i, t] = 1  # directed: file f imports target t
+    # distance: a direct dependency (either direction) is near; otherwise the
+    # cosine of out-edge rows (files with similar dependency sets are close).
     D = np.ones((n, n))
     for i in range(n):
         for j in range(i + 1, n):
-            if A[i, j] > 0:
+            if A[i, j] > 0 or A[j, i] > 0:
                 D[i, j] = D[j, i] = 0.1
             else:
                 ni, nj = np.linalg.norm(A[i]), np.linalg.norm(A[j])
@@ -258,11 +271,23 @@ _EMB = {}
 
 def _embedder():
     if "m" not in _EMB:
-        import torch
-        from transformers import AutoTokenizer, AutoModel
+        try:
+            import torch
+            from transformers import AutoTokenizer, AutoModel
+        except ImportError as e:
+            raise RuntimeError(
+                "INTENT_MODE=neural needs torch + transformers: "
+                "`pip install torch transformers` (first run downloads a ~90MB "
+                "model and needs network access)."
+            ) from e
         name = "sentence-transformers/all-MiniLM-L6-v2"
-        tok = AutoTokenizer.from_pretrained(name)
-        mod = AutoModel.from_pretrained(name)
+        try:
+            tok = AutoTokenizer.from_pretrained(name)
+            mod = AutoModel.from_pretrained(name)
+        except Exception as e:
+            raise RuntimeError(
+                f"Could not load embedding model '{name}' (network/download?): {e}"
+            ) from e
         dev = "cuda" if torch.cuda.is_available() else "cpu"
         mod.to(dev).eval()
         _EMB["m"] = (tok, mod, torch, dev)
@@ -317,46 +342,6 @@ def h0(D):
             parent[rj] = ri
             deaths.append(d)
     return deaths  # n-1 finite bar lengths (births=0)
-
-
-def labels_at(D, eps):
-    n = D.shape[0]
-    parent = list(range(n))
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for i in range(n):
-        for j in range(i + 1, n):
-            if D[i, j] <= eps:
-                ri, rj = find(i), find(j)
-                if ri != rj:
-                    parent[rj] = ri
-    return [find(i) for i in range(n)]
-
-
-def threshold_gap(deaths):
-    """Cut at the midpoint of the LARGEST gap in sorted merge distances.
-
-    The persistence threshold comes from the data's own gap structure rather
-    than a fixed quantile (driftwave's ADAPTIVE_SCALE). This stops sparse
-    channels (e.g. imports: a wall of bars at distance 1.0) from collapsing to
-    a single cluster under a median cut.
-    """
-    xs = sorted(v for v in deaths if np.isfinite(v))
-    if len(xs) < 2:
-        return xs[0] if xs else 0.5
-    best_g, best_k = -1.0, 0
-    for k in range(len(xs) - 1):
-        g = xs[k + 1] - xs[k]
-        if g > best_g:
-            best_g, best_k = g, k
-    if best_g <= 0:
-        return float(np.median(xs))
-    return (xs[best_k] + xs[best_k + 1]) / 2.0
 
 
 def labels_k(D, k):
@@ -572,10 +557,20 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     corpus = CORPUS
     if len(sys.argv) > 1:
-        corpus = [tuple(a.split("=", 1)) for a in sys.argv[1:]]
+        corpus = []
+        for a in sys.argv[1:]:
+            if "=" not in a:
+                print(f"  [usage] expected name=giturl, got {a!r} — skipping")
+                continue
+            corpus.append(tuple(a.split("=", 1)))
+        if not corpus:
+            print("usage: python bench.py name=giturl [name2=giturl2 ...]")
+            return
     results = []
     for name, url in corpus:
         repo = clone(name, url)
+        if repo is None:
+            continue
         res = analyze(name, repo)
         if res:
             results.append(res)

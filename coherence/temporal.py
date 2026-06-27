@@ -55,12 +55,33 @@ def trajectory(name):
         print(f"  [skip] {name}: files={len(files)} commits={len(commits)}")
         return None
     Dstruct = bench.m_structure(files, repo)
+    idx = {f: i for i, f in enumerate(files)}
+    nf = len(files)
     n = len(commits)
+    # Accumulate co-change counts incrementally across cumulative windows so each
+    # commit is scanned once (not re-scanned K times); derive Dco per window.
+    touch = np.zeros(nf)
+    co = np.zeros((nf, nf))
     xs, ginis, mantels = [], [], []
+    prev = 0
     for k in range(1, K + 1):
         end = int(round(n * k / K))
-        sub = commits[:end]
-        Dco = bench.m_cochange(files, sub)
+        for _, fs in commits[prev:end]:
+            pres = [idx[f] for f in fs if f in idx]
+            for a in pres:
+                touch[a] += 1
+            for a in range(len(pres)):
+                for b in range(a + 1, len(pres)):
+                    co[pres[a], pres[b]] += 1
+                    co[pres[b], pres[a]] += 1
+        prev = end
+        Dco = np.ones((nf, nf))
+        for i in range(nf):
+            for j in range(i + 1, nf):
+                denom = touch[i] + touch[j] - co[i, j]
+                jac = co[i, j] / denom if denom > 0 else 0.0
+                Dco[i, j] = Dco[j, i] = 1.0 - jac
+        np.fill_diagonal(Dco, 0.0)
         deaths = bench.h0(Dco)
         ginis.append(bench.gini(deaths))
         mantels.append(bench.mantel(Dstruct, Dco))
