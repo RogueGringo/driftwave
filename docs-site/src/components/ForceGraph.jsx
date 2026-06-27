@@ -130,11 +130,15 @@ export default function ForceGraph() {
           // Intra-cluster: gold/teal
           const color = clusterColors[ci % clusterColors.length]
           const edge = createEdge(nodes[i], nodes[j], color, 0.4)
+          edge.userData.from = nodes[i]
+          edge.userData.to = nodes[j]
           edges.push(edge)
           scene.add(edge)
         } else if (ci !== cj && dist < 2) {
           // Cross-cluster: dim
           const edge = createEdge(nodes[i], nodes[j], COLORS.edge, 0.15)
+          edge.userData.from = nodes[i]
+          edge.userData.to = nodes[j]
           edges.push(edge)
           scene.add(edge)
         }
@@ -195,13 +199,14 @@ export default function ForceGraph() {
         nodes[i].position.add(velocities[i])
       }
 
-      // Update edges
+      // Update edges to follow moving nodes
       edges.forEach(edge => {
-        const positions = edge.geometry.attributes.position
-        if (positions) {
-          // Find connected nodes by proximity (edges don't store refs)
-          // For simplicity, edges are static after initial layout
-        }
+        const { from, to } = edge.userData
+        if (!from || !to) return
+        const pos = edge.geometry.attributes.position
+        pos.setXYZ(0, from.position.x, from.position.y, from.position.z)
+        pos.setXYZ(1, to.position.x, to.position.y, to.position.z)
+        pos.needsUpdate = true
       })
     }
 

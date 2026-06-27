@@ -54,8 +54,8 @@ export default function Pipeline() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)' }}>
           {layers.map((l, i) => (
-            <div key={l.id} style={{
-              display: 'grid', gridTemplateColumns: i % 2 === 0 ? '1fr 1fr' : '1fr 1fr',
+            <div key={l.id} className="dw-pipeline-row" style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr',
               gap: 'clamp(2rem, 5vw, 4rem)', alignItems: 'center',
               direction: i % 2 === 1 ? 'rtl' : 'ltr',
             }}>

@@ -58,9 +58,10 @@ export default function GiniChart() {
     const yMin = Math.min(...trajectory) * 0.9
     const yMax = Math.max(...trajectory) * 1.1
     const n = trajectory.length
+    const yRange = yMax - yMin || 1   // guard: flat trajectory → treat range as 1
 
-    function xScale(i) { return pad.left + (i / (n - 1)) * cw }
-    function yScale(v) { return pad.top + ch - ((v - yMin) / (yMax - yMin)) * ch }
+    function xScale(i) { return pad.left + (n > 1 ? i / (n - 1) : 0.5) * cw }
+    function yScale(v) { return pad.top + ch - ((v - yMin) / yRange) * ch }
 
     // Grid
     ctx.strokeStyle = colors.border

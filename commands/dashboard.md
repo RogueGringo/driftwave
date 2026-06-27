@@ -16,7 +16,7 @@ Launch the visual topology dashboard.
 
 2. Start the dev server:
    ```bash
-   cd ${CLAUDE_PLUGIN_ROOT}/docs-site && npx vite --port 5174 &
+   cd ${CLAUDE_PLUGIN_ROOT}/docs-site && npx vite --base / --port 5174 &
    ```
 
 3. Open in browser:

@@ -58,7 +58,7 @@ Proceed? (y/n/adjust)
 
 For each action in the gap list:
 1. Do the action (write code, edit file, run command)
-2. Log what happened (one line, append to `/tmp/dw-artifacts/directive.log`)
+2. Log what happened — ensure the dir exists then append one line: `mkdir -p /tmp/dw-artifacts && echo "..." >> /tmp/dw-artifacts/directive.log`
 3. Check if it worked (run the success criteria from Step 1B)
 4. If it failed → stop, report, ask
 
