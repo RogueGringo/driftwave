@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:jtopo:driftwave:schema:sheaved_verdict",
   "title": "SheavedVerdict",
-  "description": "L3 artifact — sheaf consistency check with kernel dimension and obstruction report.",
+  "description": "L3 artifact — sheaf-inspired consistency check (LLM judgment) with a consistency count and obstruction report.",
   "type": "object",
   "required": ["sections", "kernel_dim", "obstructions", "verdict", "layer"],
   "properties": {
@@ -24,7 +24,7 @@
     },
     "kernel_dim": {
       "type": "integer",
-      "description": "ker(L_F) — number of globally consistent sections"
+      "description": "Count of globally consistent sections (a ker(L_F) analogy — not a computed kernel)."
     },
     "obstructions": {
       "type": "array",

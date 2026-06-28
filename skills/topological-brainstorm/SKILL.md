@@ -1,6 +1,6 @@
 ---
 name: topological-brainstorm
-description: "Use before any creative work — creating features, building components, adding functionality, designing systems. The brainstorming-as-filtration synthesis: idea-spaces as point clouds, approaches as persistent H₀ clusters, design coherence as H₁ loops, spec review as sheaf Laplacian convergence."
+description: "Use before any creative work — creating features, building components, adding functionality, designing systems. The brainstorming-as-filtration synthesis: idea-spaces as point clouds, approaches as persistent H₀ clusters, design coherence as H₁ loops, spec review as a global-consistency check."
 ---
 
 # Topological Brainstorming
@@ -28,7 +28,7 @@ No implementation before the waypoint signature satisfies W(I) ∈ W_phys. No co
 
 ## L2 — Topological Synthesis (Design + Document)
 
-1. Selected approach undergoes H₁ analysis — detect loops (consistency constraints)
+1. Look for 'loops' (an H₁ analogy) — cross-references and consistency constraints
 2. Present design section by section, each section = examining an H₁ feature
 3. After each section, check Gini routing:
    - Positive slope → proceed (design is hierarchifying)
@@ -36,11 +36,11 @@ No implementation before the waypoint signature satisfies W(I) ∈ W_phys. No co
    - Waypoints > 3 → SPLIT into sub-specs
 4. Write design doc when L2 is stable
 
-## L3 — Sheaf-Valued Review (Spec Review + Human Gate)
+## L3 — Sheaf-Inspired Review (Spec Review + Human Gate)
 
 1. Review spec as a section of a sheaf — check global consistency under restriction maps
 2. Each component's local spec must be compatible with all others via interfaces
-3. Iterate until ker(L_F) convergence (max 3 iterations)
+3. Iterate until the spec is globally consistent (max 3 iterations)
 4. Surface to human if topological obstruction persists
 5. Human reviews written spec before implementation gate
 

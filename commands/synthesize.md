@@ -1,5 +1,5 @@
 ---
-description: "L2 — Build design sections from filtered clusters, monitor Gini trajectory, detect consistency loops."
+description: "L2 — Build design sections from filtered clusters, monitor Gini trajectory, flag cross-section dependencies."
 ---
 
 # /driftwave:synthesize
