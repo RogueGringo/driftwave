@@ -1,6 +1,6 @@
 {
   "name": "driftwave",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A look-before-you-act coding loop for Claude Code: check what's there, what's asked, and the gap — then do it and verify. Clusters artifacts with H₀ persistent homology (real); the higher 'sheaf'/'H₁' layers are topology-inspired LLM heuristics. Guided by five axioms: NO_AVERAGING, UPWARD_FLOW, WAYPOINT_ROUTING, SHAPE_OVER_COUNT, ADAPTIVE_SCALE.",
   "author": {
     "name": "B. Jones"
