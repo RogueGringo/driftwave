@@ -389,7 +389,7 @@ cmd_validate() {
   # Check plugin.json is valid JSON
   local plugin_json="$PLUGIN_ROOT/.claude-plugin/plugin.json"
   if [ -f "$plugin_json" ]; then
-    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$plugin_json" 2>/dev/null || python -c "import json,sys; json.load(open(sys.argv[1]))" "$plugin_json" 2>/dev/null; then
+    if python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$plugin_json" 2>/dev/null || python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$plugin_json" 2>/dev/null; then
       ok "plugin.json is valid JSON"
     else
       fail "plugin.json is INVALID JSON"
@@ -400,7 +400,7 @@ cmd_validate() {
   # Check hooks.json
   local hooks_json="$PLUGIN_ROOT/hooks/hooks.json"
   if [ -f "$hooks_json" ]; then
-    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$hooks_json" 2>/dev/null || python -c "import json,sys; json.load(open(sys.argv[1]))" "$hooks_json" 2>/dev/null; then
+    if python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$hooks_json" 2>/dev/null || python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$hooks_json" 2>/dev/null; then
       ok "hooks.json is valid JSON"
     else
       fail "hooks.json is INVALID JSON"
