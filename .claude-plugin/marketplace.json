@@ -1,6 +1,6 @@
 {
   "name": "driftwave",
-  "description": "Driftwave — Adaptive Topological Field Theory cognitive pipeline. The canonical home of the driftwave Claude Code plugin.",
+  "description": "A Claude Code plugin that makes coding agents look before they act — scan, parse the real ask, map the gap, then do/log/verify with an append-only log. Optional H₀-clustering pipeline for big tasks. The canonical home of the driftwave plugin.",
   "owner": {
     "name": "B. Jones"
   },
