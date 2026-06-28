@@ -12,7 +12,7 @@ Run the L3 review layer. The sheaf consistency check — does the whole compose?
 2. Dispatch the `dw-review` agent (opus tier) with:
    - The SynthesisMap artifact
    - Any relevant spec documents
-3. Agent checks pairwise section compatibility, computes kernel dimension
+3. Agent checks pairwise section compatibility, estimates a consistency count (kernel-dimension analogy)
 4. Output saved to `/tmp/dw-artifacts/verdict.json`
 5. Validate against `${CLAUDE_PLUGIN_ROOT}/schemas/sheaved_verdict.json`
 

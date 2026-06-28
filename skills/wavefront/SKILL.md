@@ -1,6 +1,6 @@
 ---
 name: wavefront
-description: "Use when orchestrating a full analysis, design, or investigation from start to finish. The master pipeline — dispatches L0→L3 agents with typed artifacts, enforces all five axioms, runs real persistence computation."
+description: "Use when orchestrating a full analysis, design, or investigation from start to finish. The master pipeline — dispatches L0→L3 agents with typed artifacts, guided by the five axioms; runs real H₀ persistence at L1, with topology-inspired LLM heuristics above it."
 ---
 
 # @wavefront: Full Pipeline Orchestrator (V2)

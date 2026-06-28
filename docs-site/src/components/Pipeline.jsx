@@ -18,7 +18,7 @@ const layers = [
     detail: 'Positive Gini slope → ASCEND. Negative → REPROBE. Waypoints > 3 → SPLIT. Shape dominates count.',
   },
   {
-    id: 'L3', name: 'Sheaf-Valued Review', command: '/dw-ascend --sheaf', color: 'var(--color-success)',
+    id: 'L3', name: 'Sheaf-Inspired Review', command: '/dw-ascend --sheaf', color: 'var(--color-success)',
     image: 'Sheaf_fiber_bundle_over_simplicial_complex_—_gauge_connectio.jpg',
     desc: 'An LLM reviews whether the parts compose globally — a sheaf-consistency analogy, not a computed Laplacian kernel.',
     detail: 'Local sections must be compatible under restriction maps. Iterate until convergence. Surface to human if obstruction is fundamental.',

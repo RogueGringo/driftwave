@@ -1,9 +1,9 @@
 ---
 name: dw-ascend
-description: "Use when L1 filtering is complete and you need to synthesize coherent structure, detect design loops, validate global consistency, or perform sheaf-valued review. L2/L3 layers — H₁ loop detection, Gini trajectory monitoring, and sheaf Laplacian kernel convergence."
+description: "Use when L1 filtering is complete and you need to synthesize coherent structure, flag design dependencies, and review global consistency. L2/L3 are LLM-driven heuristics inspired by H₁ loops and sheaf consistency; Gini-trajectory monitoring is a real metric."
 ---
 
-# L2/L3: Topological Synthesis and Sheaf-Valued Review
+# L2/L3: Topological Synthesis and Sheaf-Inspired Review
 
 The ascent from persistent clusters to coherent architecture.
 
@@ -33,11 +33,11 @@ The Gini trajectory — how the hierarchy of topological features evolves — do
 
 **Positive Gini trajectory tends to track design quality.** A design with 3 deeply coherent sections (positive slope) outperforms one with 12 scattered sections (negative slope).
 
-## L3: Sheaf-Valued Synthesis
+## L3: Sheaf-Inspired Synthesis
 
-At L3, output is no longer scalar ("good/bad") but sheaf-valued — it carries algebraic structure.
+At L3, output is no longer scalar ("good/bad") but sheaf-inspired — it carries structure.
 
-**The sheaf Laplacian kernel test:** A configuration (design, analysis, proof) is on-shell if and only if the corresponding section lies in ker(L_F) — every local component is globally consistent under the restriction maps (interfaces, transport maps, boundary conditions).
+**The sheaf-consistency check (an analogy, done by judgment):** A configuration (design, analysis, proof) is on-shell if and only if the corresponding section lies in ker(L_F) — every local component is globally consistent under the restriction maps (interfaces, transport maps, boundary conditions).
 
 ### L3 Review Protocol
 
