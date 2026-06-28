@@ -90,3 +90,10 @@ a{transition:color var(--transition-interactive);}
 @media(max-width:720px){
   .dw-pipeline-row{grid-template-columns:1fr!important;direction:ltr!important;}
 }
+
+/* ═══════════════════════════════════════════
+   HERO – RESPONSIVE SPLIT
+   ═══════════════════════════════════════════ */
+@media(max-width:720px){
+  .dw-hero-split{grid-template-columns:1fr!important;}
+}
