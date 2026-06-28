@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const sections = ['Pipeline', 'Axioms', 'Skills', 'Install']
+const sections = ['Loop', 'Skills', 'Pipeline', 'Install']
 
 export default function Nav() {
   const [theme, setTheme] = useState('dark')
