@@ -6,7 +6,7 @@ import * as THREE from 'three'
  * Nodes = files/artifacts, edges = similarity above threshold.
  * Colors: gold = cluster members, teal = cross-cluster edges, gray = noise.
  *
- * Reads FilteredTopology artifact from /tmp/dw-artifacts/filtered.json
+ * Reads FilteredTopology artifact from the project .dw/artifacts/filtered.json
  * Falls back to demo data if no artifact exists.
  */
 

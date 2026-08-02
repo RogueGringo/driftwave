@@ -4,7 +4,80 @@ All notable changes to the **driftwave** plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.2] — 2026-06-28
+## [0.2.0] — 2026-08-02
+
+The coherence-harness release: the loop gets a verification spine distilled
+from the process patterns that kept independently re-emerging across the
+author's sibling research projects — pre-registration, computed verdicts,
+enforced honesty vocabularies, planted-fixture selftests — and the dead wiring
+found by a full self-audit is fixed. The front door is unchanged:
+`/driftwave:directive` and `/driftwave:status` are still all you need.
+
+### Added
+- **The verification spine.** `scripts/dw_verdict.py`: pre-registrations are
+  sha256-frozen BEFORE work runs (`schemas/preregistration.json`,
+  `/driftwave:preregister`); verdicts are computed mechanically against the
+  frozen predicates — `PASS / FAIL / NULL / CERTIFIED_NULL / NO_VERDICT`,
+  fail-closed, emitted as a machine-parseable `GATE:/CRITERION:/VERDICT:`
+  grammar that prose can describe but never mint. Tampered criteria refuse to
+  score; a retry requires a new prereg. Gates (instrument correctness, can
+  invalidate the run) are disjoint from findings (reported as found — a null
+  finding ships with a green build).
+- **The pin.** `driftwave.pin.json` locks the invariants no agent may retune:
+  honesty tiers, verdict/routing vocabularies, a closed flag vocabulary (the
+  only significance channel), a prohibited overclaim lexicon, gate thresholds.
+- **A real validator.** `scripts/dw_validate.py` enforces strict JSON + schema
+  + pin on every artifact (jsonschema when installed, structural fallback
+  otherwise) — every command's "validate" step now invokes an actual tool.
+  Heuristic-tier artifacts must stamp `not_acceptance: true`.
+- **The selftest instrument.** `/driftwave:selftest` (`scripts/dw_selftest.py`)
+  runs the whole pipeline headless on planted fixtures with known ground truth
+  (G1–G8) and exits non-zero on failure. Building it immediately caught a real
+  property of the clustering (see FALSIFIED F3).
+- **Artifacts-only audit.** `/driftwave:audit` re-verifies a run from what's on
+  disk — schema, pin, freeze hashes — never by re-running the analysis.
+- **Domain adapters.** `compute_persistence.py` accepts per-item `features`
+  channels on a fixed frame, or a precomputed `distances` matrix — any domain
+  feeds the same pipeline through one L0 contract (docs/HARNESS.md).
+- **Decoy null check.** L1 scores native structure against a seeded
+  column-shuffle decoy and reports it in-band (informational negative control,
+  labeled as such).
+- **Standing rules + falsified ledger.** `rules/standing_rules.json`: ten
+  failure-mode rules earned by real methodology catches, plus FALSIFIED entries
+  (including dw-bench's negative, now also carried as an in-band `caveat` on
+  every L1 artifact). The L3 review checks findings against all of it.
+- **Named findings with witnesses.** The L3 artifact assigns stable IDs; a
+  finding may not be CLOSED without a witness.
+- **docs/HARNESS.md** — the dimensional map: phase × enforcement × honesty tier.
+
+### Changed
+- **All state moved from `/tmp/dw-artifacts` to per-project `.dw/`** (env
+  `DW_STATE_DIR` → `$CLAUDE_PROJECT_DIR/.dw` → git toplevel → cwd). `/tmp` was
+  wiped on reboot and shared across projects — the 0.1.x cross-session memory
+  claims were structurally unfulfillable (FALSIFIED F2).
+- **The directive log is structured JSONL and READ BACK**: the LOOK subagent
+  reports what previous cycles did and what failed. Before, the flagship
+  "mistakes don't repeat because the log remembers" claim was write-only wiring.
+- **`topo.sh` de-hardcoded**: clusters recent changes by the repo's actual
+  top-level directories instead of the author's old monorepo layout; writes its
+  manifest to `.dw/` instead of dirtying the installed plugin's git tree; never
+  creates files in the user's project; validates the pin + schemas as JSON.
+- **gini-watchdog is wired in** (dispatched by synthesize/run every 2 sections)
+  and HOLD is representable in the L1/L2 routing enums.
+- **Doc-vs-code drift reconciled**: the epsilon rule text now matches the code
+  (median bar lifetime, not "95th percentile"); wavefront's "even trivial tasks
+  pass through" removed (it contradicted README, directive.md, and the fifth
+  axiom); dashboard command now states it renders demo data; dw-ingest's
+  unhonored `local_llm:*` frontmatter keys removed (the capability is roadmap,
+  not config).
+- L2/L3 artifacts and agents stamp `not_acceptance: true` and carry provenance
+  blocks; schemas gained provenance / flags / limits / deviations / findings /
+  baseline fields (all optional — 0.1.x artifacts still validate).
+
+### Removed
+- The stale committed `.topo-artifacts.json` (a scan snapshot of a different
+  repo from 2026-03), plus its PLUGIN_ROOT write path.
+
 
 Continues the claims-to-reality work onto every surface, leads the site with the
 product, and fixes a Windows-only hook false alarm found by installing and testing

@@ -53,9 +53,21 @@ Every action follows the same cycle:
     └──────────── next cycle reads the log ────┘
 ```
 
-The log is the key. Without it, each cycle starts from scratch. With it, each round knows what the last round did, what worked, what didn't. Mistakes don't repeat because the log remembers them.
+The log is the key. Without it, each cycle starts from scratch. With it, each round knows what the last round did, what worked, what didn't. Mistakes don't repeat because the log remembers them — and as of 0.2, the LOOK step actually reads it back (before that, embarrassingly, the log was write-only; see CHANGELOG).
 
 Over time, patterns emerge. Ideas that keep coming back session after session — those are real. Ideas that appeared once and disappeared — that was noise. The log tells you which is which.
+
+### The verification spine
+
+Since 0.2 the loop has teeth, borrowed from a set of sibling research projects that independently converged on the same discipline:
+
+- **Frozen criteria.** For any real analysis, success criteria are frozen (sha256) *before* the work runs. The verdict is computed against them by `scripts/dw_verdict.py` — `PASS / FAIL / NULL / CERTIFIED_NULL`, fail-closed — and criteria edited after the fact refuse to score. A negative result is recorded permanently; a retry needs a new pre-registration.
+- **A locked pin.** `driftwave.pin.json` holds the invariants no agent may retune: the honesty tiers, the closed flag vocabulary, the prohibited overclaim lexicon ("proves", "guarantees", …), gate thresholds. `scripts/dw_validate.py` enforces all of it on every artifact.
+- **Gates vs findings.** Instrument-correctness checks can invalidate a run; findings never can — a null finding ships with a green build.
+- **A self-proving pipeline.** `/driftwave:selftest` runs planted fixtures with known ground truth through everything and exits non-zero if any of its G1–G8 checks fail.
+- **Standing rules.** `rules/standing_rules.json` — failure modes earned by real methodology catches (never gate on a p-value without an effect-size floor; agreement is not verification; unknown never certifies) — checked by the review stage against every new finding.
+
+The dimensional map of the whole harness is in [docs/HARNESS.md](docs/HARNESS.md).
 
 ## Commands
 
@@ -65,6 +77,14 @@ Over time, patterns emerge. Ideas that keep coming back session after session �
 |---------|--------------|
 | `/driftwave:directive` | "Here's what I want. Figure out the gap and do it." |
 | `/driftwave:status` | "What's going on right now?" |
+
+**The verification spine (new in 0.2):**
+
+| Command | Plain English |
+|---------|--------------|
+| `/driftwave:preregister` | "Freeze what success means BEFORE doing the work." |
+| `/driftwave:selftest` | "Prove the pipeline itself works — planted fixtures, hard exit codes." |
+| `/driftwave:audit` | "Re-verify a run from its artifacts alone. No re-analysis." |
 
 **When things get complex:**
 
@@ -113,7 +133,9 @@ THE GAP:
 Proceed? (y)
 ```
 
-**4. Say `y`.** It does the work, logs each step to `/tmp/dw-artifacts/directive.log`, and verifies it worked. Don't like the plan? Say `n` or `adjust`.
+**4. Say `y`.** It does the work, logs each step to `.dw/directive.log` in your
+project (structured JSONL — and the next cycle *reads it back*, so mistakes
+don't repeat), and verifies it worked. Don't like the plan? Say `n` or `adjust`.
 
 That's the whole loop — and it works on more than code:
 
@@ -134,6 +156,7 @@ Under the hood, driftwave borrows ideas from the mathematics that finds structur
 
 You don't need to know any of that. The commands work whether you understand the math or not. But if you're curious:
 
+- [docs/HARNESS.md](docs/HARNESS.md) — the dimensional map of the harness: phase × enforcement × honesty tier
 - [VISION.md](VISION.md) — the geometric theory and vision (read as direction; includes ideas not yet built)
 - [PROTOCOL.md](PROTOCOL.md) — the engineering spec
 - [ROADMAP.md](ROADMAP.md) — what ships today vs. what's planned (H₁/Betti computation, speculative-reject capture, local-LLM routing, and the live dashboard are **not yet built**)
