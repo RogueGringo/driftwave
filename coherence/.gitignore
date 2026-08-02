@@ -1,0 +1,6 @@
+# cloned corpus + generated outputs (figures/ is committed by hand)
+repos/
+out/
+out_neural/
+__pycache__/
+*.pyc

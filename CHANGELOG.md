@@ -14,6 +14,15 @@ found by a full self-audit is fixed. The front door is unchanged:
 `/driftwave:directive` and `/driftwave:status` are still all you need.
 
 ### Added
+- **`coherence/`** — multi-channel codebase design-coherence analysis (driftwave's
+  topology applied to real repositories). Encodes files under four distance
+  channels (structure, git co-change, import graph, intent embeddings), runs H₀
+  persistent homology per channel, and scores **cross-channel sheaf-agreement**
+  (Mantel + ARI@k). Includes a temporal meta-persistence view (coherence over
+  commit history) and an optional GPU neural intent channel (`INTENT_MODE=neural`).
+- **`/driftwave:coherence`** command to run the analysis on any repo or corpus.
+- Reference findings + figures from a 10-repo cross-language run (Python / JS /
+  Rust) in `coherence/README.md`.
 - **The verification spine.** `scripts/dw_verdict.py`: pre-registrations are
   sha256-frozen BEFORE work runs (`schemas/preregistration.json`,
   `/driftwave:preregister`); verdicts are computed mechanically against the
