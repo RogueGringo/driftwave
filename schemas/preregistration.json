@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jtopo:driftwave:schema:preregistration",
+  "title": "Preregistration",
+  "description": "Frozen decision criteria, written BEFORE the work runs. Criteria chosen after seeing results are not criteria. dw_verdict.py freeze stamps frozen_sha256; eval refuses to score if the content no longer matches the hash; a retry requires a NEW pre-registration, never an edit.",
+  "type": "object",
+  "required": ["prereg_id", "question", "criteria"],
+  "properties": {
+    "prereg_id": { "type": "string" },
+    "created": { "type": "string", "format": "date-time" },
+    "question": { "type": "string", "description": "The one question this run answers" },
+    "intent": { "type": "string", "description": "What the user actually wants — from the directive's WHAT'S ASKED parse" },
+    "non_goals": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Explicitly registered so the run cannot drift into them"
+    },
+    "baselines": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The cheapest already-available alternatives any positive claim must beat — the honest bar"
+    },
+    "honest_prior": { "type": "string", "description": "Predicted outcome, written before running. Being wrong here is information, not failure." },
+    "gates": {
+      "type": "array",
+      "description": "Instrument-correctness checks. A gate failure means the run is INVALID (NO_VERDICT) — findings from a broken instrument are not findings. Gates can fail the run; findings never can.",
+      "items": {
+        "type": "object",
+        "required": ["name", "predicate"],
+        "properties": {
+          "name": { "type": "string" },
+          "predicate": { "$ref": "#/$defs/predicate" }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "description": "The claims under test. kind=positive criteria decide PASS/FAIL/NULL; kind=null_evidence criteria (a permutation null, a decoy comparison, a power statement) upgrade NULL to CERTIFIED_NULL. predicate=null marks a criterion only LLM judgment can assess — it is labeled MANUAL and can never mint a computed verdict.",
+      "items": {
+        "type": "object",
+        "required": ["id", "predicate"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "kind": { "type": "string", "enum": ["positive", "null_evidence"], "default": "positive" },
+          "predicate": {
+            "oneOf": [{ "$ref": "#/$defs/predicate" }, { "type": "null" }]
+          }
+        }
+      }
+    },
+    "null_is_valid": {
+      "type": "boolean",
+      "description": "true = a NULL outcome is a recorded, acceptable result (recorded permanently, never deleted or silently retried)"
+    },
+    "verdict_semantics": {
+      "type": "object",
+      "description": "Both branches pre-committed: what action follows each outcome, decided before any outcome exists",
+      "properties": {
+        "on_pass": { "type": "string" },
+        "on_fail": { "type": "string" },
+        "on_null": { "type": "string" }
+      }
+    },
+    "deviation_policy": {
+      "type": "string",
+      "const": "disclose",
+      "description": "The only policy: divergence from this prereg is disclosed in the synthesis artifact's deviations[], at the point of deviation"
+    },
+    "frozen_sha256": {
+      "type": "string",
+      "description": "Set by dw_verdict.py freeze over the canonicalized content (excluding this field). Presence = frozen; eval refuses without it."
+    }
+  },
+  "$defs": {
+    "predicate": {
+      "type": "object",
+      "required": ["field", "op"],
+      "properties": {
+        "field": { "type": "string", "description": "Dotted path into the results JSON" },
+        "op": { "type": "string", "enum": ["==", "!=", ">", ">=", "<", "<=", "in", "exists", "is_true", "is_false"] },
+        "value": {}
+      }
+    }
+  }
+}

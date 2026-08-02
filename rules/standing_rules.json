@@ -1,0 +1,75 @@
+{
+  "ontology": "driftwave_standing_rules — append-only failure-mode memory. Every entry was earned by a real methodology catch; the review stage checks new findings against every rule, and new catches append here via the LOG step. Rules are never deleted, only superseded with a pointer.",
+  "rules": [
+    {
+      "id": "R1",
+      "rule": "Never gate on a significance test without an effect-size floor. Significant and negligible can be the same number.",
+      "origin": "market-spectral: the pre-registered gate printed PASS (perm p=0.004) on an effect that was 0.09% of rank variance; the robustness pass correctly overturned it to NULL."
+    },
+    {
+      "id": "R2",
+      "rule": "Check split-half / subgroup / temporal sign stability before calling any finding PASS. A sign that flips across halves is noise wearing a p-value.",
+      "origin": "market-spectral: full-sample partial Spearman +0.030 hid a first-half -0.019 / second-half +0.092 flip; 4 of 11 years negative."
+    },
+    {
+      "id": "R3",
+      "rule": "Every claim names the cheapest baseline it beats, or carries 'none identified' as a red flag. Incremental-over-baseline is the honest bar.",
+      "origin": "market-spectral PREREG.md baselines section; potential-map's per-lens null baselines (DMD vs random walk, realized vol vs persistence)."
+    },
+    {
+      "id": "R4",
+      "rule": "Gates are on instrument correctness; findings are reported as found. A gate failure invalidates the run; a finding never gates, and a null finding ships with a green build.",
+      "origin": "cocycle verify_launch.py: 'Gates are on INSTRUMENT correctness… correlation values are findings and are reported as found' — how a certified null shipped honestly."
+    },
+    {
+      "id": "R5",
+      "rule": "Decision criteria are frozen before measurement, with both branches pre-committed; divergence is disclosed at the point of deviation, never silently.",
+      "origin": "C1PO promotion_preregistration.json (a FAILED promotion recorded honestly); market-spectral experiment.py DEVIATION NOTE; sha256-research-suite prereg discipline."
+    },
+    {
+      "id": "R6",
+      "rule": "Negative results are permanent first-class artifacts. A retry requires a NEW pre-registration — never deletion, never quiet re-running until it passes.",
+      "origin": "C1PO excess-drift selection.json ('selected': null, kept); driftwave's own dw-bench negative (H0 did not beat Louvain/Ward), kept in-repo."
+    },
+    {
+      "id": "R7",
+      "rule": "Agreement is not verification. Exploratory signals that look good never certify anything; only gates actually passed do. Explore-tier output is force-stamped not_acceptance.",
+      "origin": "ToeStub firewall.py: explore looks promising + certify gates fail => reject; the near-miss doctrine."
+    },
+    {
+      "id": "R8",
+      "rule": "Unknown never certifies; fail closed. A missing field, an absent registry, an unset count — each rejects, none passes by default.",
+      "origin": "ToeStub/C1PO firewall semantics: 'unspecified' satisfies no family; None is not zero; missing registry = safe failure."
+    },
+    {
+      "id": "R9",
+      "rule": "Design measurements so they cannot be trivially clean: ask what value a check takes on degenerate input, and if success is indistinguishable from that, add an independent second measurement.",
+      "origin": "potential-map hodge_lens: naive curl on a scalar surface is 0 by construction, so K-slope and T-slope are fit independently to make disagreement detectable."
+    },
+    {
+      "id": "R10",
+      "rule": "Anything that extrapolates or forecasts stamps an out-of-sample comparison against a naive baseline, and auto-downgrades itself to descriptive-only when it loses.",
+      "origin": "potential-map: every DMD run prints its OOS/random-walk ratio; NFLX 3.01 => auto-labeled descriptive-only."
+    }
+  ],
+  "falsified": [
+    {
+      "id": "F1",
+      "approach": "Presenting H0 clustering on the default [size_bytes, staleness_days, language-hash] basis as load-bearing structure evidence.",
+      "refutation": "dw-bench (experiments/structure-recovery): an honest negative — H0 clustering did not beat Louvain/Ward at recovering real repository structure from git history.",
+      "consequence": "L1 output is a descriptive map. compute_persistence.py now says so in-band (caveat field); richer domain-adapter features may change this, but only a new benchmark run can."
+    },
+    {
+      "id": "F2",
+      "approach": "Cross-session memory in /tmp (dw-artifacts).",
+      "refutation": "/tmp is wiped on reboot and shared across projects — the 0.1.x meta-persistence and directive-log memory claims were structurally unfulfillable.",
+      "consequence": "All state lives in the per-project .dw/ directory (see driftwave.pin.json state block)."
+    },
+    {
+      "id": "F3",
+      "approach": "Jittered tight groups recovered exactly by the median-bar-lifetime cut.",
+      "refutation": "dw_selftest.py development: most merge distances are intra-group, so the median lands inside the intra distribution and jittered groups fragment (G2 originally failed 0/3).",
+      "consequence": "Exact recovery is asserted on an exact planted distance matrix; jittered fixtures test validity/aliveness/decoy only. Documented in docs/HARNESS.md."
+    }
+  ]
+}
