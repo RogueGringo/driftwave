@@ -65,6 +65,11 @@ These work — but as **LLM judgment** framed in topological language, not liter
   pipeline over N corpora, generalization measured by certification fraction
   (never by averaging suggestive scores). The design is in docs/HARNESS.md;
   nothing executes it yet.
+- **coherence/ convergence into the spine** — route the four coherence channels
+  through `compute_persistence.py`'s features/distances adapter contract so the
+  pinned eps rule, decoy control, and validator govern coherence runs; until
+  then the module runs beside the spine and its outputs say so
+  (`not_acceptance` + caveat).
 - **Semantic addressing** — the (context, intent, value) coordinate schema (`schemas/semantic_address.json`) exists but nothing emits or consumes it yet.
 
 ## The honest one-liner

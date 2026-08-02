@@ -85,9 +85,69 @@ found by a full self-audit is fixed. The front door is unchanged:
   blocks; schemas gained provenance / flags / limits / deviations / findings /
   baseline fields (all optional — 0.1.x artifacts still validate).
 
+### Hardened (stage consolidation — nine-angle adversarial review)
+
+A nine-finder review pass (reuse / efficiency / simplification / altitude /
+wrapper-correctness / language-pitfalls / cross-file-tracing / line-scan /
+removed-behavior) ran against the consolidated stage branch; every reproduced
+finding is fixed, with regression tests:
+
+- **Lexicon check is word-boundary, not substring** — "provenance" no longer
+  trips "proven", "improves" no longer trips "proves" (honest artifacts were
+  hard-failing validation).
+- **The meta recipe can no longer destroy accumulated memory** — the `mv` is
+  `&&`-chained, and `compute_meta_persistence.py` derives the schema-required
+  `accumulated_verdicts` itself (a by-the-book first run used to fail its own
+  validate step).
+- **Adapter inputs fail closed everywhere**: distances matrices are
+  shape-checked against `files` (was an IndexError traceback), partial
+  features REPROBE instead of silently clustering fabricated defaults, and a
+  missing `path` key rejects cleanly.
+- **Float verdict equality tolerates representation noise** (`0.1+0.2 == 0.3`
+  PASSes via isclose) — a permanent wrong FAIL was one ulp away.
+- **Layer-derived honesty tiers**: the pin maps L2/L3 → heuristic and
+  dw_validate enforces it regardless of what the producing agent self-reports
+  — the policed producers can no longer opt out by omitting provenance.
+  (Compat note: L2/L3 artifacts without a heuristic provenance block now fail
+  default validation; that is the point.)
+- **One mechanism per concern**: the persistence scripts import dw_common
+  (strict parse, pin, provenance, version — the version now reads from
+  plugin.json, ending three private copies); state-dir resolution has a CLI
+  (`dw_common.py state-dir`) that topo.sh and the command prose call instead
+  of re-deriving; the directive log is written/read by `scripts/dw_log.py`
+  (shell-quoting can no longer corrupt next cycle's memory).
+- **`.dw/` self-gitignores** (a `.gitignore` containing `*` inside it), and
+  topo.sh migrates live 0.1.x `/tmp/dw-artifacts` history on first scan
+  instead of silently starting memory from zero.
+- **topo.sh**: git<2.22 branch fallback, truly strict JSON checks (bare NaN
+  now rejected; one interpreter spawn instead of 10–20 per session start),
+  space-safe directory clustering, no contradictory ✓-after-✗ report line.
+- **RawCloud schema honors the any-domain contract** — adapter (features) and
+  distances-mode artifacts validate; before, the documented contract was
+  schema-blocked at L0.
+- **Selftest can no longer crash instead of verdicting** (G5 None-format
+  guard, top-level guard) and G8 delegates to the real `pin_check` enforcer
+  instead of a weaker inline copy.
+- **Pin trimmed to reality**: the flag vocabulary lists only flags something
+  emits; the gini REPROBE slope (-0.01) is pinned instead of living in prose;
+  dead schema fields (`deviation_policy`, `intent`) removed.
+- **coherence/ scoped honestly**: outputs/clones move out of the plugin tree
+  (`DW_COHERENCE_DIR`, default `./coherence-out`); git failures warn and skip
+  instead of publishing degenerate all-ones fingerprints; `temporal.py`
+  analyzes the corpus you actually benched (was a hardcoded 7-repo list);
+  dead scipy dependency dropped; `fingerprints.json` is stamped
+  `not_acceptance: true` with an in-band caveat that the module runs beside
+  the pinned spine, not inside it (convergence is roadmap).
+- **docs/PORTING.md** — the host-neutral kit spec: what ports to any agentic
+  system (pin, schemas, rules, stdlib CLIs), the four capabilities a host
+  binding must provide, and machine-checkable conformance (selftest +
+  regression suite + validate must pass in the port's environment).
+
 ### Removed
 - The stale committed `.topo-artifacts.json` (a scan snapshot of a different
   repo from 2026-03), plus its PLUGIN_ROOT write path.
+- The dead `scipy` requirement in `coherence/requirements.txt` (nothing
+  imports it), and the pin's five never-emitted flags.
 
 
 ## [0.1.2] — 2026-06-28

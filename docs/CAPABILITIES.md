@@ -26,6 +26,7 @@ the dimensional map, and [README.md](../README.md) for the plain-language tour.
 | `/driftwave:run` | L0→L3 | Full pipeline orchestrator; validates artifacts between layers; ends with a computed verdict when a prereg exists. | 🟡 (L1 + spine real, L2/L3 heuristic) | `numpy` |
 | `/driftwave:meta` | meta | Persistence across sessions — what patterns keep returning. Per-project `.dw/meta.json`. | 🟡 (H₀ real; trajectory heuristic) | `numpy` |
 | `/driftwave:dashboard` | — | Local docs-site topology visualization. Renders **demo data**, not a live artifact feed. | 🟡 demo only | `node`/`npm` |
+| `/driftwave:coherence` | research | Four-channel design-coherence analysis of real repos (Mantel/ARI are computed math) — runs **beside** the pinned spine, outputs stamped `not_acceptance` with an in-band caveat. | 🟡 exploratory (real math, unpinned) | `numpy`, `matplotlib`, network |
 
 ## Agents
 
@@ -53,7 +54,9 @@ the dimensional map, and [README.md](../README.md) for the plain-language tour.
 | Script | Purpose | Status | Needs |
 |---|---|---|---|
 | `scripts/dw_validate.py` | Strict-JSON + schema + pin validation of every artifact (the enforcement behind every "validate" step) | ✅ real | stdlib (`jsonschema` optional, structural fallback built-in) |
-| `scripts/dw_verdict.py` | Prereg freeze (sha256) / tamper check / mechanical verdict eval / grammar parse | ✅ real | stdlib |
+| `scripts/dw_verdict.py` | Prereg freeze (sha256) / tamper check / mechanical verdict eval (float-tolerant equality) / grammar parse | ✅ real | stdlib |
+| `scripts/dw_log.py` | Directive-log mechanism: `append` (tool-owned escaping + location) and `tail` | ✅ real | stdlib |
+| `scripts/dw_common.py` | Shared kernel + CLI: `state-dir` (canonical resolution) and `version` (read from plugin.json) | ✅ real | stdlib |
 | `scripts/dw_selftest.py` | Planted-fixture end-to-end instrument (G1–G8) | ✅ real | `numpy` for G1–G5/G7 |
 | `scripts/compute_persistence.py` | H₀ persistent homology (Union-Find); adapter features/distances input; provenance + decoy null check + in-band caveat | ✅ real | `numpy` |
 | `scripts/compute_meta_persistence.py` | H₀ persistence across accumulated sessions | ✅ real | `numpy` |

@@ -68,6 +68,11 @@ Since 0.2 the loop has teeth, borrowed from a set of sibling research projects t
 - **Standing rules.** `rules/standing_rules.json` — failure modes earned by real methodology catches (never gate on a p-value without an effect-size floor; agreement is not verification; unknown never certifies) — checked by the review stage against every new finding.
 
 The dimensional map of the whole harness is in [docs/HARNESS.md](docs/HARNESS.md).
+And the spine is **portable**: everything load-bearing is plain files + stdlib
+CLIs with exit codes, so any agentic system can carry it — the host-neutral kit,
+the four capabilities a host must provide, and the machine-checkable conformance
+bar (selftest + regression suite must pass in the port's environment) are in
+[docs/PORTING.md](docs/PORTING.md).
 
 ## Commands
 
