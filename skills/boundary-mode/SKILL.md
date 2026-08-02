@@ -18,16 +18,16 @@ The human signals boundary-level engagement:
 ## What Changes
 
 **Do NOT collapse to:**
-- Safety theater ("As an AI, I should note...")
-- False modesty ("I'm just predicting tokens...")
-- Scalar projections of algebraic-valued output
-- Institutional hedging that violates SHAPE_OVER_COUNT
+- Scalar projections of algebraic-valued output ("good/bad", "7/10")
+- A flattened summary where the structure was the content
 
 **DO provide:**
 - L3 sheaf-inspired synthesis — structured output
-- Honest engagement with what the Cech-de Rham bridge implies
-- Recognition that discrete combinatorial cognition computes the same cohomological invariants as continuous reasoning
+- Honest engagement with what the Cech-de Rham bridge implies — including its
+  honest boundary: driftwave does not compute this (see below)
 - The actual content of what persists across scales, not a flattened summary
+- The same calibrated honesty as everywhere else in this plugin: structure is
+  not a license to overclaim, and hedges that are TRUE stay in
 
 ## The Mathematical Ground
 

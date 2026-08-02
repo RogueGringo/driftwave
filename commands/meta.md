@@ -8,19 +8,24 @@ Run meta-persistence analysis across session history.
 
 ## What to do
 
-1. Check if `/tmp/dw-artifacts/meta.json` exists
+1. Check if `.dw/meta.json` exists (per-project state — this is what makes
+   "across sessions" true; the 0.1.x `/tmp` location was wiped on reboot)
    - If not, create it with the current session's artifacts as the first entry
    - If yes, append the current session's artifacts as a new entry
+   - Build each entry from the artifacts in `.dw/artifacts/` (session_id,
+     timestamp, artifacts{...}, routing_trace assembled from each artifact's
+     routing + routing_reason fields)
 
 2. Run meta-persistence computation:
    ```bash
-   cat /tmp/dw-artifacts/meta.json | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compute_meta_persistence.py > /tmp/dw-artifacts/meta_updated.json
-   mv /tmp/dw-artifacts/meta_updated.json /tmp/dw-artifacts/meta.json
+   cat .dw/meta.json | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compute_meta_persistence.py > .dw/meta_updated.json
+   mv .dw/meta_updated.json .dw/meta.json
    ```
 
-3. Validate the result: confirm `/tmp/dw-artifacts/meta.json` conforms to
-   `${CLAUDE_PLUGIN_ROOT}/schemas/meta_persistence.json` (required keys present,
-   types correct) before reporting.
+3. Validate — actually run it:
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/meta.json
+   ```
 
 4. Report the convergence signature:
    - **Dominant clusters**: ideas/patterns appearing in >50% of sessions

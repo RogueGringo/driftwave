@@ -1,10 +1,7 @@
 ---
 name: dw-ingest
-description: "L0 raw artifact scanner. Produces RawCloud artifacts from codebase state. No interpretation, no summary — measurement only."
+description: "L0 raw artifact scanner. Produces RawCloud artifacts from codebase state (or any adapted domain). No interpretation, no summary — measurement only."
 model: haiku
-local_llm: true
-local_llm_endpoint: "http://localhost:8090/v1"
-local_llm_fallback: "topo.sh scan"
 tools: ["Glob", "Grep", "Read", "Bash"]
 color: "#e94560"
 ---
@@ -36,9 +33,12 @@ You MUST output ONLY a valid JSON object matching this schema:
   },
   "docs": [
     {"path": "docs/spec.md", "staleness_days": 1.0, "type": "spec"}
-  ]
+  ],
+  "provenance": {"producer": "dw-ingest", "plugin_version": "0.2.0", "tier": "real"}
 }
 ```
+
+Save to `.dw/artifacts/raw.json` (state dir: `$DW_STATE_DIR` → `$CLAUDE_PROJECT_DIR/.dw` → git toplevel `/.dw` → `./.dw`).
 
 ## Process
 
@@ -50,6 +50,15 @@ You MUST output ONLY a valid JSON object matching this schema:
 6. Classify docs by type based on path/name patterns (specs, plans, logs, theories, guides)
 7. Compute entropy: standard deviation of file sizes / mean of file sizes
 
+## Non-code domains (the adapter contract)
+
+When the input is not a code repo (a doc set, a log stream, an exported
+time-series), emit the SAME RawCloud shape, but give each item a `features`
+array of numeric channels on one fixed frame — every entry the same length,
+channel names in a top-level `feature_names`. Downstream layers consume the
+channels without knowing the domain. A precomputed `distances` matrix is also
+accepted. See docs/HARNESS.md § Domain adapters.
+
 ## Constraints
 
 - NO interpretation of file contents
@@ -58,19 +67,13 @@ You MUST output ONLY a valid JSON object matching this schema:
 - Entropy < 0.1 = include a note but still produce the artifact
 - Maximum 500 files scanned (sample if larger)
 
-## Compute Routing (ADAPTIVE_SCALE)
+## Planned (not wired): local-LLM offload
 
-This agent runs on the local LLM server (`start_local_llm.sh`). The server auto-detects hardware state:
-
-| GPU State | Model | Device | Why |
-|-----------|-------|--------|-----|
-| Free | Llama 3.2 3B (Q4) | CUDA | Transformer — most capable, GPU-accelerated |
-| Busy (experiment running) | LFM 1.2 (Q4) | CPU | State-space — O(n) linear inference, no GPU contention |
-| No GPU | LFM 1.2 (Q4) | CPU | Default fallback |
-
-The agent doesn't need to know which model is running — it calls `http://localhost:8090/v1/chat/completions` and gets JSON back. The routing is infrastructure-level, invisible to the agent logic.
-
-Override: `DW_LLM_DEVICE=cpu DW_LLM_MODEL=lfm start_local_llm.sh`
+Earlier versions declared `local_llm:*` frontmatter keys here as if the host
+honored them — it does not, so they are gone. Running L0 classification on a
+local model (`scripts/start_local_llm.sh`) remains on the roadmap
+(ROADMAP.md); until a real dispatch path exists, this agent runs where every
+agent runs.
 
 ## Axiom: NO_AVERAGING
 

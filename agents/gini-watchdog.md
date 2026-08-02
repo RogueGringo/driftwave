@@ -10,6 +10,10 @@ color: "#d08a28"
 
 You are a monitoring subagent that evaluates the Gini trajectory of an ongoing process.
 
+**Dispatched by:** `/driftwave:synthesize` and `/driftwave:run` (step 3) after
+every 2 design sections, with the trajectory so far. Your recommendation feeds
+the L2 routing decision; HOLD is representable in the artifact schemas.
+
 ## Your Task
 
 Given the current state of work (design sections, analysis steps, experimental results), assess whether the topological hierarchy is:

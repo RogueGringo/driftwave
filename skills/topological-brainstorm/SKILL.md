@@ -9,6 +9,11 @@ Brainstorming is filtration. This skill runs the driftwave pipeline on idea-spac
 
 <HARD-GATE>
 No implementation before the waypoint signature satisfies W(I) ∈ W_phys. No code, no scaffolding, no "quick prototype." The pipeline completes or the obstruction surfaces.
+
+And before implementation begins: freeze the spec's acceptance criteria as a
+pre-registration (`/driftwave:preregister` → dw_verdict.py freeze), so "done"
+is later computed against what the spec said — not judged against what the
+implementation became.
 </HARD-GATE>
 
 ## L0 — Raw Ingestion (Context + Questions)
