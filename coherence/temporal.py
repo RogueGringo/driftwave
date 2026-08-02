@@ -18,27 +18,34 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import bench
 
-NAMES = ["rich", "requests", "pydantic", "httpx", "fastapi", "black", "django"]
+import sys
+
+# The corpus comes from the CLI or from what bench actually cloned — a
+# hardcoded name list here meant `/driftwave:coherence mylib=…` produced
+# evolution plots for seven repos the user never asked about (all skipped
+# as "not cloned") and none for theirs.
+def _corpus_names():
+    if len(sys.argv) > 1:
+        return sys.argv[1:]
+    cloned = []
+    if os.path.isdir(bench.REPOS):
+        cloned = sorted(d for d in os.listdir(bench.REPOS)
+                        if os.path.isdir(os.path.join(bench.REPOS, d, ".git")))
+    return cloned or [n for n, _ in bench.CORPUS]
+
+
+NAMES = _corpus_names()
 K = 12
-OUT = bench.OUT
+# Same output resolution as bench, including neural mode — a neural run's
+# evolution plots must land beside its fingerprints, not in the default out/.
+OUT = (os.path.join(bench.BASE, "out_neural")
+       if os.environ.get("INTENT_MODE") == "neural" else bench.OUT)
 
 
 def history_chrono(repo, maxc=4000):
-    out = bench.run(["git", "-C", repo, "log", f"-n{maxc}", "--name-only",
-                     "--pretty=format:__C__%n%s"]).stdout.splitlines()
-    commits, msg, files, state = [], None, set(), 0
-    for ln in out:
-        if ln == "__C__":
-            if msg is not None:
-                commits.append((msg, files))
-            msg, files, state = None, set(), 1
-        elif state == 1:
-            msg, state = ln, 2
-        else:
-            if ln.strip():
-                files.add(ln.strip())
-    if msg is not None:
-        commits.append((msg, files))
+    # One parser (bench.parse_history) — a git-log edge-case fix must not
+    # skew trajectories against the fingerprints they're plotted beside.
+    commits = bench.parse_history(repo, maxc)
     commits.reverse()  # oldest -> newest
     return commits
 

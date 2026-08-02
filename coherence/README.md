@@ -88,7 +88,7 @@ to use sentence-transformers (`all-MiniLM-L6-v2`) on GPU/CPU instead.
 ## Usage
 
 ```bash
-pip install -r requirements.txt                 # numpy, scipy, matplotlib
+pip install -r requirements.txt                 # numpy, matplotlib
 # optional, for INTENT_MODE=neural: pip install torch transformers
 
 # default corpus
@@ -114,3 +114,23 @@ Outputs: `out/` (or `out_neural/`) with `barcodes.png`, `agreement.png`,
   agreement → plots + fingerprints.
 - `temporal.py` — temporal meta-persistence trajectories.
 - `figures/` — reference plots from the 10-repo cross-language run.
+
+## Relationship to the verification spine (honest scope)
+
+This module runs **beside** the 0.2.0 spine, not inside it — yet. Concretely:
+
+- It carries its own H₀ union-find and a fixed-k cluster cut, not the pinned
+  `median-bar-lifetime` rule `compute_persistence.py` enforces — the two can
+  legitimately disagree about the same repo's module structure.
+- Its runs are not pre-registered, carry no decoy null check, and its
+  headline numbers (mean Mantel, ARI) have no frozen thresholds. The
+  `fingerprints.json` it writes is stamped `not_acceptance: true` with an
+  in-band caveat saying exactly this.
+- Outputs and clones live under `DW_COHERENCE_DIR` (default
+  `./coherence-out`), never inside the installed plugin tree.
+
+Routing the four channels through `compute_persistence.py`'s
+`features`/`distances` adapter contract — so the pinned eps rule, decoy
+control, and validator govern coherence runs too — is the planned
+convergence (ROADMAP.md). Until then, read these findings as exploratory
+instrument output, which is what their stamp says.

@@ -13,24 +13,28 @@ agree on the same module structure — agreement *is* coherence.
 
 1. Ensure deps:
    `pip install -r ${CLAUDE_PLUGIN_ROOT}/coherence/requirements.txt`
-   (optional neural intent channel: `pip install torch transformers`).
+   (numpy + matplotlib; optional neural intent channel: `pip install torch transformers`).
 
-2. Run the bench on the requested repos (or the default corpus):
+2. Run the bench from the **project**, never from inside the plugin tree —
+   clones and outputs go to the harness state dir:
    ```bash
-   cd ${CLAUDE_PLUGIN_ROOT}/coherence
-   python bench.py $ARGUMENTS                  # name=giturl name2=giturl2 ...
-   INTENT_MODE=neural python bench.py $ARGUMENTS   # GPU embeddings -> out_neural/
+   export DW_COHERENCE_DIR=.dw/coherence
+   python3 ${CLAUDE_PLUGIN_ROOT}/coherence/bench.py $ARGUMENTS        # name=giturl ...
+   INTENT_MODE=neural python3 ${CLAUDE_PLUGIN_ROOT}/coherence/bench.py $ARGUMENTS  # -> out_neural/
    ```
 
 3. Report:
    - the coherence ranking by **mean Mantel** (threshold-free headline metric),
    - the strongest channel pairs per repo (structure↔imports is the usual backbone),
-   - and point to `out/refinement_scatter.png`, `out/agreement.png`,
-     `out/barcodes.png`, and `out/fingerprints.json`.
+   - the paths under `.dw/coherence/out/` (`refinement_scatter.png`,
+     `agreement.png`, `barcodes.png`, `fingerprints.json`),
+   - and the `caveat` field from `fingerprints.json` VERBATIM — this module
+     runs beside the pinned spine, not inside it, and its own artifact says so.
 
-4. Evolution view (temporal meta-persistence):
+4. Evolution view (temporal meta-persistence) — analyzes the repos from step 2
+   (pass names to override):
    ```bash
-   python temporal.py     # -> out/evolution_coherence.png, out/evolution_gini.png
+   python3 ${CLAUDE_PLUGIN_ROOT}/coherence/temporal.py [names...]
    ```
 
 ## How to read it
@@ -40,5 +44,7 @@ agree on the same module structure — agreement *is* coherence.
 - **structure ↔ imports** agreement is the design backbone; **cochange** is the
   evolution signal; **intent** is what files are about.
 - Needs a real repo (≳ 40 files / hundreds of commits) — small repos read as noise.
+- These are exploratory findings (`not_acceptance: true`): no prereg, no decoy
+  control, unpinned thresholds. See coherence/README.md § honest scope.
 
 See [`coherence/README.md`](../coherence/README.md) for full methodology, findings, and limitations.

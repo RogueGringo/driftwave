@@ -24,9 +24,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-WORK = os.path.dirname(os.path.abspath(__file__))
-REPOS = os.path.join(WORK, "repos")
-OUT = os.path.join(WORK, "out")
+# Clones and outputs never land inside the installed plugin tree (read-only
+# installs break, and writable ones get hundreds of MB of state committed to
+# the plugin's git). Default under the invoking project; override with
+# DW_COHERENCE_DIR (e.g. .dw/coherence to keep it inside the harness state).
+BASE = os.environ.get("DW_COHERENCE_DIR") or os.path.join(os.getcwd(), "coherence-out")
+REPOS = os.path.join(BASE, "repos")
+OUT = os.path.join(BASE, "out")
 CORPUS = [
     ("driftwave", "https://github.com/RogueGringo/driftwave.git"),
     ("requests",  "https://github.com/psf/requests.git"),
@@ -50,7 +54,15 @@ STRUCT_W = (0.6, 0.25, 0.15)
 
 
 def run(cmd, cwd=None):
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, errors="replace")
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, errors="replace")
+    if r.returncode != 0:
+        # Visible, never silent: an empty stdout from a failed git command
+        # would otherwise flow downstream as a degenerate all-ones co-change
+        # matrix and publish as a genuine "incoherent repo" data point.
+        err = (r.stderr or "").strip().splitlines()
+        print(f"  [git-warn] {' '.join(cmd[:4])}… rc={r.returncode}"
+              + (f": {err[0]}" if err else ""), file=sys.stderr)
+    return r
 
 
 def read_file(path, maxbytes=120000):
@@ -94,9 +106,11 @@ def list_files(repo):
     return files
 
 
-def parse_history(repo):
-    """Return list of (subject, set(files)) for up to MAX_COMMITS commits."""
-    out = run(["git", "-C", repo, "log", f"-n{MAX_COMMITS}", "--name-only",
+def parse_history(repo, maxc=None):
+    """Return list of (subject, set(files)) for up to maxc (default
+    MAX_COMMITS) commits, newest first. temporal.py reuses this — one parser,
+    one set of edge-case fixes."""
+    out = run(["git", "-C", repo, "log", f"-n{maxc or MAX_COMMITS}", "--name-only",
                "--pretty=format:__C__%n%s"]).stdout.splitlines()
     commits = []
     msg = None
@@ -418,6 +432,10 @@ def mantel(D1, D2):
 def analyze(name, repo):
     cands = list_files(repo)
     commits = parse_history(repo)
+    if not commits:
+        print(f"  [skip] {name}: no readable git history (see git-warn) — "
+              "refusing to fingerprint an empty co-change signal")
+        return None
     files = select_files(cands, commits)
     n = len(files)
     if n < 8:
@@ -553,7 +571,7 @@ def plot_refinement(results):
 def main():
     global OUT
     if os.environ.get("INTENT_MODE") == "neural":
-        OUT = os.path.join(WORK, "out_neural")
+        OUT = os.path.join(BASE, "out_neural")
     os.makedirs(OUT, exist_ok=True)
     corpus = CORPUS
     if len(sys.argv) > 1:
@@ -579,8 +597,25 @@ def main():
         return
     summary = [{k: r[k] for k in ("name", "n_files", "n_commits", "mean_ari", "mean_man", "metrics")}
                for r in results]
+    # Stamped like every other driftwave artifact: the numbers are computed
+    # (Mantel/ARI are real math) but this module runs BESIDE the pinned spine,
+    # not inside it — so the file says so instead of impersonating a
+    # spine-certified result.
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+        from dw_common import PLUGIN_VERSION as _ver
+    except Exception:
+        _ver = "unknown"
+    doc = {
+        "artifact": "coherence_fingerprints",
+        "provenance": {"producer": "coherence/bench.py", "plugin_version": _ver, "tier": "real"},
+        "not_acceptance": True,
+        "caveat": ("research appliance: computed outside the pinned spine — no prereg, "
+                   "no pinned eps_rule, no decoy control; see coherence/README.md limits"),
+        "repos": summary,
+    }
     with open(os.path.join(OUT, "fingerprints.json"), "w") as fh:
-        json.dump(summary, fh, indent=2)
+        json.dump(doc, fh, indent=2, allow_nan=False)
     p1 = plot_barcodes(results)
     p2 = plot_agreement(results)
     p3 = plot_refinement(results)
