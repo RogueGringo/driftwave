@@ -153,15 +153,26 @@ def main() -> int:
                    len(finite_lifetimes) > 1,
                    f"{len(finite_lifetimes)} distinct finite lifetimes")
 
-            nc = result.get("null_check", {})
-            record("G5", "native beats seeded decoy", bool(nc.get("beats_decoy")),
-                   f"native={nc.get('native_top_lifetime'):.3f} decoy={nc.get('decoy_top_lifetime'):.3f}")
+            nc = result.get("null_check") or {}
+            native, decoy = nc.get("native_top_lifetime"), nc.get("decoy_top_lifetime")
+            if native is None or decoy is None:
+                # A REPROBE-shaped artifact carries no null_check — that is a
+                # FAIL row, never a format-spec crash that eats the table.
+                record("G5", "native beats seeded decoy", False,
+                       f"no null_check in artifact (routing={result.get('routing')})")
+            else:
+                record("G5", "native beats seeded decoy", bool(nc.get("beats_decoy")),
+                       f"native={native:.3f} decoy={decoy:.3f}")
 
-            flags_ok = set(result.get("flags", [])) <= set(pin["flag_vocabulary"])
-            lex_ok = not any(w in result.get("routing_reason", "").lower()
-                             for w in pin["prohibited_lexicon"])
-            record("G8", "pin conformance in emissions", flags_ok and lex_ok,
-                   f"flags={result.get('flags')}")
+            # G8 delegates to the real enforcer instead of a weaker inline
+            # copy: pin_check scans every pinned claim field, not just
+            # routing_reason, so the selftest certifies the property the
+            # pipeline actually enforces.
+            import dw_validate
+            pin_errors: list[str] = []
+            dw_validate.pin_check(result, pin, pin_errors)
+            record("G8", "pin conformance in emissions", not pin_errors,
+                   f"flags={result.get('flags')}" if not pin_errors else "; ".join(pin_errors[:3]))
 
         # ── G2, G3: exact distance fixture (deterministic recovery contract) ──
         raw2, truth = planted_distance_fixture()
@@ -274,4 +285,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as e:  # the instrument must verdict, never traceback
+        print(f"\nVERDICT: FAIL selftest crashed before completing: {type(e).__name__}: {e}")
+        sys.exit(1)

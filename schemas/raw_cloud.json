@@ -4,7 +4,21 @@
   "title": "RawCloud",
   "description": "L0 artifact — raw artifact scan with no interpretation. Entropy gate rejects low-variance inputs.",
   "type": "object",
-  "required": ["files", "git_state", "docs", "entropy", "layer"],
+  "required": ["files", "layer"],
+  "note": "git_state/docs/entropy are required only of CODE-repo scans by convention (dw-ingest emits them); a domain adapter (sensor export, doc set, log stream) has no git state, so requiring them at schema level blocked the exact any-domain contract the release ships. The if/then below relaxes per-file requirements in distances mode, where entries carry only a path.",
+  "if": { "not": { "required": ["distances"] } },
+  "then": {
+    "properties": {
+      "files": {
+        "items": {
+          "anyOf": [
+            { "required": ["language", "size_bytes"] },
+            { "required": ["features"] }
+          ]
+        }
+      }
+    }
+  },
   "properties": {
     "layer": { "const": "L0" },
     "timestamp": { "type": "string", "format": "date-time" },
@@ -17,10 +31,6 @@
       "items": {
         "type": "object",
         "required": ["path"],
-        "anyOf": [
-          { "required": ["language", "size_bytes"] },
-          { "required": ["features"] }
-        ],
         "properties": {
           "path": { "type": "string" },
           "content_hash": { "type": "string" },

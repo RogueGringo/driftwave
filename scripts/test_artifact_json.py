@@ -348,6 +348,89 @@ def test_computed_verdict_artifact_validates():
     print("PASS test_computed_verdict_artifact_validates")
 
 
+def test_review_hardening_round():
+    """Regressions for the nine-angle review fixes (stage consolidation)."""
+    # 1. Lexicon is word-boundary, not substring: 'provenance' and 'improves'
+    #    must pass; a standalone 'proves' must still fail.
+    ok_art = strict_loads(run("compute_persistence.py", SAMPLE_RAW))
+    ok_art["routing_reason"] = "clustering improves separation; provenance recorded"
+    p = subprocess.run([sys.executable, str(SCRIPTS / "dw_validate.py"), "-"],
+                       input=json.dumps(ok_art), capture_output=True, text=True)
+    assert p.returncode == 0, f"benign words must not trip the lexicon: {p.stdout}"
+    bad_art = dict(ok_art, routing_reason="this proves the design works")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "dw_validate.py"), "-"],
+                       input=json.dumps(bad_art), capture_output=True, text=True)
+    assert p.returncode == 1 and "prohibited lexicon" in p.stdout
+
+    # 2. Adapter inputs fail closed: partial features, mismatched distances
+    #    shape, missing path — all clean REPROBE artifacts, never tracebacks.
+    for payload, why in [
+        ({"files": [{"path": "a", "features": [1, 2]}, {"path": "b", "language": "py", "size_bytes": 5}]},
+         "partial features"),
+        ({"files": [{"path": p} for p in "abcd"], "distances": [[0, 1], [1, 0]]},
+         "distances shape"),
+        ({"files": [{"language": "py", "size_bytes": 5}, {"path": "b", "language": "js", "size_bytes": 9}]},
+         "missing path"),
+    ]:
+        out = strict_loads(run("compute_persistence.py", payload))
+        assert out["routing"] == "REPROBE", f"{why}: expected REPROBE, got {out['routing']}"
+
+    # 3. First-run meta recipe validates: accumulated_verdicts is derived by
+    #    the script, so a by-the-book /driftwave:meta no longer fails its own
+    #    validate step.
+    first_meta = {"sessions": [
+        {"session_id": "s1", "timestamp": "2026-01-01T00:00:00Z",
+         "artifacts": {"sheaved_verdict": {"verdict": "ON_SHELL", "kernel_dim": 2, "obstructions": []}}}]}
+    out = strict_loads(run("compute_meta_persistence.py", first_meta))
+    assert out["accumulated_verdicts"] and out["accumulated_verdicts"][0]["verdict"] == "ON_SHELL"
+    maybe_validate(out, "meta_persistence.json")
+
+    # 4. Float equality tolerates representation noise: 0.1+0.2 == 0.3 PASSes.
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="dw-test-"))
+    pr = tmp / "p.json"
+    pr.write_text(json.dumps({"prereg_id": "f1", "question": "float eq",
+                              "criteria": [{"id": "C1", "predicate": {"field": "x", "op": "==", "value": 0.3}}]}),
+                  encoding="utf-8")
+    rs = tmp / "r.json"
+    rs.write_text(json.dumps({"x": 0.1 + 0.2}), encoding="utf-8")
+    assert subprocess.run([sys.executable, str(SCRIPTS / "dw_verdict.py"), "freeze", str(pr)],
+                          capture_output=True, text=True).returncode == 0
+    ev = subprocess.run([sys.executable, str(SCRIPTS / "dw_verdict.py"), "eval", str(pr), str(rs)],
+                        capture_output=True, text=True)
+    assert "VERDICT: PASS" in ev.stdout, f"0.30000000000000004 == 0.3 must PASS: {ev.stdout}"
+
+    # 5. Layer-derived tiers: an L2 artifact claiming tier 'real' (or omitting
+    #    provenance) is rejected — the policed producer cannot opt out.
+    l2 = {"layer": "L2", "sections": [], "loops": [], "trajectory": [], "routing": "HOLD",
+          "provenance": {"producer": "x", "plugin_version": "0.2.0", "tier": "real"}}
+    p = subprocess.run([sys.executable, str(SCRIPTS / "dw_validate.py"), "-"],
+                       input=json.dumps(l2), capture_output=True, text=True)
+    assert p.returncode == 1 and "pinned heuristic-tier" in p.stdout, p.stdout
+
+    # 6. Adapter/distances RawCloud artifacts validate against raw_cloud.json
+    #    (the documented any-domain contract was schema-blocked before).
+    adapter = {"layer": "L0", "files": [{"path": "s1", "features": [1.0, 2.0]},
+                                        {"path": "s2", "features": [3.0, 4.0]}],
+               "feature_names": ["temp", "vib"]}
+    distances = {"layer": "L0", "files": [{"path": "a"}, {"path": "b"}],
+                 "distances": [[0.0, 1.0], [1.0, 0.0]]}
+    for art, why in ((adapter, "features adapter"), (distances, "distances adapter")):
+        p = subprocess.run([sys.executable, str(SCRIPTS / "dw_validate.py"), "-", "--schema", "raw_cloud.json"],
+                           input=json.dumps(art), capture_output=True, text=True)
+        assert p.returncode == 0, f"{why} RawCloud must validate: {p.stdout}"
+    # ...while a code-scan entry with neither language+size nor features still fails under jsonschema
+    try:
+        import jsonschema  # noqa: F401
+        bad_scan = {"layer": "L0", "files": [{"path": "a"}]}
+        p = subprocess.run([sys.executable, str(SCRIPTS / "dw_validate.py"), "-", "--schema", "raw_cloud.json"],
+                           input=json.dumps(bad_scan), capture_output=True, text=True)
+        assert p.returncode == 1, "non-distances entries still need language+size or features"
+    except ImportError:
+        pass
+    print("PASS test_review_hardening_round")
+
+
 if __name__ == "__main__":
     test_persistence()
     test_meta_persistence()
@@ -361,4 +444,5 @@ if __name__ == "__main__":
     test_nonfinite_inputs_never_ship_nan()
     test_validator_survives_type_confusion()
     test_computed_verdict_artifact_validates()
+    test_review_hardening_round()
     print("\nAll artifact-JSON tests passed.")

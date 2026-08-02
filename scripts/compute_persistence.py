@@ -26,22 +26,15 @@ import json
 import os
 import sys
 import hashlib
-from pathlib import Path
 import numpy as np
 
-PLUGIN_VERSION = "0.2.0"
+# Shared mechanism, not private copies: strict parsing, the pin, the version,
+# and the provenance shape all come from dw_common (same directory) so a
+# version bump or parse-rule change lands everywhere at once.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from dw_common import PLUGIN_VERSION, load_pin, provenance, strict_loads  # noqa: E402
+
 DEFAULT_BASIS = ["size_bytes", "staleness_days", "language_hash"]
-
-
-def _reject_constant(token: str):
-    raise ValueError(f"non-finite JSON constant in input (invalid strict JSON): {token!r}")
-
-
-def load_pin_gates() -> dict:
-    """Gate thresholds come from the pin — the loop reads them, it does not
-    duplicate them as constants (fail closed if the pin is missing)."""
-    pin_path = Path(__file__).resolve().parent.parent / "driftwave.pin.json"
-    return json.loads(pin_path.read_text(encoding="utf-8"))["gates"]
 
 
 def emit(result: dict):
@@ -261,17 +254,12 @@ def null_check(features: np.ndarray, native_top: float) -> dict:
     }
 
 
-def build_provenance(basis: list[str], n: int, extra_params: dict | None = None) -> dict:
-    params = {"eps_rule": load_pin_gates()["eps_rule"], "n_items": n}
-    if extra_params:
-        params.update(extra_params)
-    return {
-        "producer": "compute_persistence.py",
-        "plugin_version": PLUGIN_VERSION,
-        "tier": "real",
-        "params": params,
-        "feature_basis": basis,
-    }
+def build_provenance(basis: list[str], n: int, gates: dict) -> dict:
+    block = provenance(
+        "compute_persistence.py", "real",
+        params={"eps_rule": gates["eps_rule"], "n_items": n})
+    block["feature_basis"] = basis
+    return block
 
 
 CAVEAT = ("descriptive map, not load-bearing evidence: on the dw-bench "
@@ -279,16 +267,17 @@ CAVEAT = ("descriptive map, not load-bearing evidence: on the dw-bench "
           "community detection (see experiments/structure-recovery)")
 
 
-def reprobe(reason: str, files=None, basis=None, n=0) -> dict:
+def reprobe(reason: str, files=None, basis=None, n=0, gates=None) -> dict:
     return {
         "layer": "L1",
         "barcode": [],
         "distances": [],
         "clusters": [],
-        "noise": [f["path"] for f in (files or [])],
+        "noise": [f.get("path", f"<unnamed item {i}>") for i, f in enumerate(files or [])],
         "routing": "REPROBE",
         "routing_reason": reason,
-        "provenance": build_provenance(basis or DEFAULT_BASIS, n),
+        "provenance": build_provenance(basis or DEFAULT_BASIS, n,
+                                       gates or {"eps_rule": "median-bar-lifetime"}),
         "caveat": CAVEAT,
         "flags": ["no_structure"],
     }
@@ -297,32 +286,58 @@ def reprobe(reason: str, files=None, basis=None, n=0) -> dict:
 def main():
     # Strict parse: a bare NaN/Infinity token in the input is rejected here,
     # not silently swallowed and re-emitted.
-    raw = json.loads(sys.stdin.read(), parse_constant=_reject_constant)
+    raw = strict_loads(sys.stdin.read())
     files = raw.get("files", [])
     n = len(files)
-    gates = load_pin_gates()
+    gates = load_pin()["gates"]
+
+    if any(not isinstance(f, dict) or "path" not in f for f in files):
+        # raw.json is authored by an LLM agent — a missing key is realistic
+        # and must reject cleanly, not KeyError mid-cluster.
+        emit(reprobe("every files[] entry must be an object with a 'path' key",
+                     [f for f in files if isinstance(f, dict)], n=n, gates=gates))
+        return
 
     if n < 2:
-        emit(reprobe("Fewer than 2 artifacts — need more input", files, n=n))
+        emit(reprobe("Fewer than 2 artifacts — need more input", files, n=n, gates=gates))
         return
 
     features = None
     omitted = None
+    with_features = [f for f in files if isinstance(f.get("features"), list) and f["features"]]
     if isinstance(raw.get("distances"), list) and raw["distances"]:
         # Precomputed distance matrix from a domain adapter.
         D = np.asarray(raw["distances"], dtype=np.float64)
         basis = ["precomputed_distances"]
         omitted = [{"stage": "null_check",
                     "reason": "precomputed distances — no feature basis to shuffle"}]
+        # The schema promises 'row order = files order'; enforce it — a
+        # mismatched matrix must REPROBE, not IndexError or silently truncate.
+        if D.ndim != 2 or D.shape[0] != D.shape[1] or D.shape[0] != n:
+            emit(reprobe(f"distances must be an {n}x{n} matrix matching files order "
+                         f"(got shape {list(D.shape)})", files, basis, n, gates))
+            return
         if not np.isfinite(D).all():
-            emit(reprobe("precomputed distances contain non-finite values", files, basis, n))
+            emit(reprobe("precomputed distances contain non-finite values", files, basis, n, gates))
+            return
+        if float(D.max()) == 0.0:
+            emit(reprobe("zero variance — all pairwise distances are 0; "
+                         "this is no information, not structure", files, basis, n, gates))
             return
     else:
-        if all(isinstance(f.get("features"), list) and f["features"] for f in files):
+        if with_features and len(with_features) < n:
+            # Some-but-not-all items carry adapter channels: silently falling
+            # back to the default basis would cluster the wrong space and
+            # stamp it tier 'real'. Fail closed instead.
+            emit(reprobe(f"{len(with_features)}/{n} items carry features — a domain "
+                         "adapter must emit one fixed frame for EVERY item "
+                         "(or none, to use the default basis)", files, n=n, gates=gates))
+            return
+        if with_features:
             widths = {len(f["features"]) for f in files}
             if len(widths) != 1:
                 emit(reprobe(f"features arrays have mixed lengths {sorted(widths)} — "
-                             "a domain adapter must emit one fixed frame", files, n=n))
+                             "a domain adapter must emit one fixed frame", files, n=n, gates=gates))
                 return
             features = np.array([f["features"] for f in files], dtype=np.float64)
             basis = [f"channel_{i}" for i in range(features.shape[1])]
@@ -333,14 +348,14 @@ def main():
             # 1e999 parses as inf in valid strict JSON; min-max normalizing an
             # inf column yields NaN everywhere. Reject at the door instead.
             emit(reprobe("feature values must be finite (found inf/NaN after parse)",
-                         files, basis, n))
+                         files, basis, n, gates))
             return
         features = normalize_features(features)
         D = compute_distance_matrix(features)
         if float(D.max()) == 0.0:
             # All items identical: zero information, not one strong cluster.
             emit(reprobe("zero variance — every item is identical in feature space; "
-                         "this is no information, not structure", files, basis, n))
+                         "this is no information, not structure", files, basis, n, gates))
             return
 
     # Compute H₀ persistence
@@ -371,7 +386,7 @@ def main():
         "noise": noise,
         "routing": routing,
         "routing_reason": routing_reason,
-        "provenance": build_provenance(basis, n),
+        "provenance": build_provenance(basis, n, gates),
         "caveat": CAVEAT,
     }
     if features is not None:
@@ -389,8 +404,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except ValueError as e:
-        # Invalid strict JSON on stdin (bare NaN/Infinity token, syntax error):
+    except (ValueError, FileNotFoundError, KeyError) as e:
+        # Invalid strict JSON on stdin, a missing/incomplete pin (this script
+        # fails closed outside a complete plugin tree), or a malformed input:
         # reject with a message, never a traceback — and never swallow it.
-        print(f"ERROR: {e}", file=sys.stderr)
+        print(f"ERROR: {type(e).__name__}: {e}", file=sys.stderr)
         sys.exit(2)

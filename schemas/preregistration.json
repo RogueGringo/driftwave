@@ -9,7 +9,6 @@
     "prereg_id": { "type": "string" },
     "created": { "type": "string", "format": "date-time" },
     "question": { "type": "string", "description": "The one question this run answers" },
-    "intent": { "type": "string", "description": "What the user actually wants — from the directive's WHAT'S ASKED parse" },
     "non_goals": {
       "type": "array",
       "items": { "type": "string" },
@@ -61,11 +60,6 @@
         "on_fail": { "type": "string" },
         "on_null": { "type": "string" }
       }
-    },
-    "deviation_policy": {
-      "type": "string",
-      "const": "disclose",
-      "description": "The only policy: divergence from this prereg is disclosed in the synthesis artifact's deviations[], at the point of deviation"
     },
     "frozen_sha256": {
       "type": "string",

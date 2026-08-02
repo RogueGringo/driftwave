@@ -10,7 +10,12 @@ Run the L0 ingestion layer. Scans the project (or specified path) and produces a
 ## What to do
 
 1. Create `.dw/artifacts/` if it doesn't exist (state dir resolution: `$DW_STATE_DIR` → `$CLAUDE_PROJECT_DIR/.dw` → git toplevel `/.dw` → `./.dw`)
-2. Dispatch the `dw-ingest` agent, OR fall back to `topo.sh scan` (writes a summary manifest to `.dw/topo-scan.json` — the fallback emits counts, not a per-file cloud; say so rather than pretending)
+2. Dispatch the `dw-ingest` agent. **The fallback is honest but limited:** if
+   agent dispatch is unavailable, `topo.sh scan` writes only a counts summary
+   to `.dw/topo-scan.json` — it does NOT produce a RawCloud, so the pipeline
+   stops at L0. Report that plainly ("scan summary only; L1 needs the
+   dw-ingest agent or an adapter-emitted raw.json") instead of validating a
+   file that doesn't exist.
 3. The agent scans files via Glob/Grep, classifies by language/size/staleness
 4. Output saved to `.dw/artifacts/raw.json`
 5. Validate — actually run it, this is not prose:

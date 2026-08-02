@@ -22,7 +22,9 @@ Usage:
 """
 from __future__ import annotations
 
+import functools
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -31,6 +33,15 @@ from dw_common import (
 )
 
 SCHEMAS = PLUGIN_ROOT / "schemas"
+
+# Cache invariant work: under --all (and the selftest's repeated invocations)
+# the pin and each schema were re-read and re-parsed once per artifact.
+load_pin = functools.lru_cache(maxsize=1)(load_pin)
+
+
+@functools.lru_cache(maxsize=None)
+def _load_schema(schema_name: str):
+    return json.loads((SCHEMAS / schema_name).read_text(encoding="utf-8"))
 
 LAYER_TO_SCHEMA = {
     "L0": "raw_cloud.json",
@@ -85,7 +96,7 @@ def schema_check(artifact: dict, schema_name: str, errors: list[str]) -> str:
         errors.append(f"schema not found: {schema_path}")
         return "missing"
     try:
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema = _load_schema(schema_name)
     except (OSError, json.JSONDecodeError) as e:
         errors.append(f"schema unreadable: {schema_path}: {e}")
         return "missing"
@@ -123,11 +134,14 @@ def pin_check(artifact: dict, pin: dict, errors: list[str]):
     ):
         errors.append(f"verdict: {verdict!r} not in pinned verdict/consistency vocabulary")
 
+    # Word-boundary matching, not substring: 'proven' must not fire on
+    # 'provenance', nor 'proves' on 'improves' — the review flow reproduced
+    # honest artifacts hard-failing on exactly those.
     lexicon = [w.lower() for w in pin["prohibited_lexicon"]]
     for fpath, text in iter_claim_fields(artifact, set(pin["claim_fields"])):
         low = text.lower()
         for word in lexicon:
-            if word in low:
+            if re.search(rf"\b{re.escape(word)}\b", low):
                 errors.append(
                     f"prohibited lexicon: {word!r} in claim field {fpath} — "
                     "overclaims are a validation failure, not a style issue"
@@ -138,7 +152,22 @@ def pin_check(artifact: dict, pin: dict, errors: list[str]):
         errors.append(f"provenance: expected an object, got {type(prov).__name__}")
         prov = None
     tier = (prov or {}).get("tier")
-    if tier == "heuristic" and artifact.get("not_acceptance") is not True:
+    # The tier is derived from the LAYER, not trusted from self-report: L2/L3
+    # are LLM judgment by construction (pinned in layer_tiers), so those
+    # artifacts must declare heuristic provenance and stamp not_acceptance —
+    # the producers being policed don't get to opt out by omitting the block.
+    required_tier = pin.get("layer_tiers", {}).get(artifact.get("layer"))
+    if required_tier == "heuristic":
+        if tier != "heuristic":
+            errors.append(
+                f"layer {artifact.get('layer')} is pinned heuristic-tier; "
+                f"provenance.tier is {tier!r} — LLM judgment may not self-report as computed"
+            )
+        if artifact.get("not_acceptance") is not True:
+            errors.append(
+                f"layer {artifact.get('layer')} artifact must carry not_acceptance: true"
+            )
+    elif tier == "heuristic" and artifact.get("not_acceptance") is not True:
         errors.append(
             "heuristic-tier artifact must carry not_acceptance: true "
             "(explore-tier output may never look like a certified result)"
@@ -162,7 +191,7 @@ def pin_check(artifact: dict, pin: dict, errors: list[str]):
                 )
 
 
-def strict_check(artifact: dict, errors: list[str]):
+def strict_check(artifact: dict, pin: dict, errors: list[str]):
     prov = artifact.get("provenance")
     if not isinstance(prov, dict):
         errors.append("--strict: missing provenance block")
@@ -170,8 +199,10 @@ def strict_check(artifact: dict, errors: list[str]):
     for key in ("producer", "plugin_version", "tier"):
         if key not in prov:
             errors.append(f"--strict: provenance missing '{key}'")
-    if prov.get("tier") not in ("real", "heuristic", "planned"):
-        errors.append(f"--strict: provenance.tier {prov.get('tier')!r} not an honesty tier")
+    # The tier vocabulary comes from the pin — the enforcer must not carry a
+    # private copy of the thing it enforces.
+    if prov.get("tier") not in pin["honesty_tiers"]:
+        errors.append(f"--strict: provenance.tier {prov.get('tier')!r} not a pinned honesty tier")
 
 
 def validate_one(text: str, name: str, schema_name: str | None, strict: bool) -> list[str]:
@@ -195,7 +226,7 @@ def validate_one(text: str, name: str, schema_name: str | None, strict: bool) ->
     pin = load_pin()
     pin_check(artifact, pin, errors)
     if strict:
-        strict_check(artifact, errors)
+        strict_check(artifact, pin, errors)
     return errors
 
 

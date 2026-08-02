@@ -29,6 +29,14 @@ If the artifacts can't prove the run, the run isn't proven.
    - `AUDIT: FAIL <n> finding(s)` — list them; a failed audit means the run's
      conclusions are unsupported by its own record
 
+## Legacy artifacts
+
+`--strict` requires provenance blocks, which pre-0.2.0 artifacts don't carry.
+When a state dir contains 0.1.x-era artifacts, audit them at the default level
+and report them as `warn: legacy (pre-provenance) artifact` — a run that was
+valid when produced is not retroactively FAIL, but it also can't claim the
+0.2 guarantees.
+
 ## What this is not
 
 Not a re-analysis, not a second opinion, not a vibe check. It answers exactly

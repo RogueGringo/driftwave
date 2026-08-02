@@ -184,25 +184,42 @@ def compute_convergence_signature(meta: dict) -> dict:
     }
 
 
-def _reject_constant(token: str):
-    raise ValueError(f"non-finite JSON constant in input (invalid strict JSON): {token!r}")
+import os as _os
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from dw_common import provenance as _dw_provenance, strict_loads as _strict_loads  # noqa: E402
 
 
-def _provenance() -> dict:
-    return {"producer": "compute_meta_persistence.py",
-            "plugin_version": "0.2.0", "tier": "real"}
+def _ensure_accumulated_verdicts(meta: dict):
+    """schemas/meta_persistence.json requires accumulated_verdicts, but the
+    first-session recipe (commands/meta.md step 1) doesn't build it — so a
+    by-the-book run failed its own validate step. Derive it from the sessions
+    when absent: mechanism over prose."""
+    if "accumulated_verdicts" in meta:
+        return
+    acc = []
+    for s in meta.get("sessions", []):
+        verdict = (s.get("artifacts") or {}).get("sheaved_verdict") or {}
+        if verdict:
+            acc.append({
+                "session_id": s.get("session_id", ""),
+                "verdict": verdict.get("verdict", "OFF_SHELL"),
+                "kernel_dim": verdict.get("kernel_dim", 0),
+                "obstruction_count": len(verdict.get("obstructions", [])),
+            })
+    meta["accumulated_verdicts"] = acc
 
 
 def main():
     # Strict parse + allow_nan=False dumps: a NaN must never pass through
     # silently nor ship as a bare token (the P0 bug this suite guards).
-    meta = json.loads(sys.stdin.read(), parse_constant=_reject_constant)
+    meta = _strict_loads(sys.stdin.read())
     sessions = meta.get("sessions", [])
+    _ensure_accumulated_verdicts(meta)
 
     if len(sessions) < 2:
         meta["meta_barcode"] = []
         meta["convergence_signature"] = compute_convergence_signature(meta)
-        meta["provenance"] = _provenance()
+        meta["provenance"] = _dw_provenance("compute_meta_persistence.py", "real")
         json.dump(meta, sys.stdout, indent=2, allow_nan=False)
         return
 
@@ -221,7 +238,7 @@ def main():
 
     meta["meta_barcode"] = barcode
     meta["convergence_signature"] = compute_convergence_signature(meta)
-    meta["provenance"] = _provenance()
+    meta["provenance"] = _dw_provenance("compute_meta_persistence.py", "real")
 
     json.dump(meta, sys.stdout, indent=2, allow_nan=False)
 

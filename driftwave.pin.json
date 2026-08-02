@@ -9,6 +9,11 @@
     "ADAPTIVE_SCALE"
   ],
   "honesty_tiers": ["real", "heuristic", "planned"],
+  "layer_tiers": {
+    "L2": "heuristic",
+    "L3": "heuristic"
+  },
+  "layer_tiers_note": "The tier is derived from the layer, not trusted from self-report: L2/L3 are LLM judgment by construction, so dw_validate requires their artifacts to declare heuristic provenance and stamp not_acceptance regardless of what the producing agent wrote. L0/L1 are unmapped: L1 is the disclosed mixed case (computed record + LLM labels, see docs/HARNESS.md).",
   "verdict_vocabulary": ["PASS", "FAIL", "NULL", "CERTIFIED_NULL", "NO_VERDICT"],
   "consistency_vocabulary": ["ON_SHELL", "OFF_SHELL"],
   "routing_vocabulary": ["ASCEND", "REPROBE", "SPLIT", "HOLD"],
@@ -17,14 +22,9 @@
     "no_structure",
     "beats_decoy",
     "fails_decoy",
-    "gate_failed",
-    "schema_invalid",
-    "prereg_mismatch",
-    "deviation_disclosed",
-    "limit_declared",
     "stage_omitted"
   ],
-  "flag_vocabulary_note": "flags[] is the ONLY sanctioned significance channel on an artifact. A flag not in this list is a validation failure, not a new feature.",
+  "flag_vocabulary_note": "flags[] is the ONLY sanctioned significance channel on an artifact. A flag not in this list is a validation failure, not a new feature. Every flag here has a real emitter (compute_persistence.py); a new flag is appended in the same human git commit that adds its emitter — pinning signals nothing can produce just makes readers reason about states that never occur.",
   "prohibited_lexicon": [
     "proves",
     "proven",
@@ -51,7 +51,8 @@
     "entropy_min": 0.1,
     "split_cluster_threshold": 3,
     "max_reprobe_iterations": 3,
-    "eps_rule": "median-bar-lifetime"
+    "eps_rule": "median-bar-lifetime",
+    "gini_reprobe_slope": -0.01
   },
   "state": {
     "dir_resolution": "DW_STATE_DIR > $CLAUDE_PROJECT_DIR/.dw > <git toplevel>/.dw > ./.dw",

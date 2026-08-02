@@ -14,13 +14,16 @@ Run meta-persistence analysis across session history.
    - If yes, append the current session's artifacts as a new entry
    - Build each entry from the artifacts in `.dw/artifacts/` (session_id,
      timestamp, artifacts{...}, routing_trace assembled from each artifact's
-     routing + routing_reason fields)
+     routing + routing_reason fields). The script derives `accumulated_verdicts`
+     from the sessions automatically — you don't hand-build it.
 
-2. Run meta-persistence computation:
+2. Run meta-persistence computation — the `&&` is load-bearing: a failed
+   compute (exit 2 on corrupt input) must never let the `mv` replace months of
+   accumulated memory with an empty file:
    ```bash
-   cat .dw/meta.json | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compute_meta_persistence.py > .dw/meta_updated.json
-   mv .dw/meta_updated.json .dw/meta.json
+   cat .dw/meta.json | python3 ${CLAUDE_PLUGIN_ROOT}/scripts/compute_meta_persistence.py > .dw/meta_updated.json && mv .dw/meta_updated.json .dw/meta.json
    ```
+   If it fails, report the error and leave `.dw/meta.json` untouched.
 
 3. Validate — actually run it:
    ```bash

@@ -38,6 +38,7 @@ A criterion with "predicate": null is MANUAL by construction.
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -88,11 +89,20 @@ def eval_predicate(pred: dict, results) -> tuple[bool, str]:
             return ok, f"{detail} {op} {expected!r}"
         return False, f"{detail}: ordering op {op} needs a number"
     try:
-        ok = {
-            "==": actual == expected, "!=": actual != expected,
-            ">": actual > expected, ">=": actual >= expected,
-            "<": actual < expected, "<=": actual <= expected,
-        }[op]
+        # Float equality with tolerance: verdicts are permanent and a retry
+        # needs a new prereg, so 0.1+0.2 != 0.3 must never permanently record
+        # a wrong FAIL. isclose is a no-op for exact ints.
+        if op in ("==", "!="):
+            if isinstance(expected, (int, float)) and not isinstance(expected, bool):
+                close = math.isclose(actual, expected, rel_tol=1e-9, abs_tol=1e-12)
+            else:
+                close = actual == expected
+            ok = close if op == "==" else not close
+        else:
+            ok = {
+                ">": actual > expected, ">=": actual >= expected,
+                "<": actual < expected, "<=": actual <= expected,
+            }[op]
     except TypeError:
         # A number compared against a non-number expected value: the predicate
         # is malformed. Fail the predicate, never the process — unknown never
@@ -162,33 +172,40 @@ def cmd_freeze(path: Path) -> int:
     return 0
 
 
-def cmd_check(path: Path) -> int:
+def _verify(path: Path) -> tuple[int, dict | None]:
+    """Single read + hash check: the bytes whose hash we verify are the bytes
+    we score (no second read, no TOCTOU window between check and eval)."""
     prereg = strict_load_path(path)
     if not isinstance(prereg, dict):
         print("MISMATCH: prereg is not a JSON object — refusing to score")
-        return 1
+        return 1, None
     recorded = prereg.get("frozen_sha256")
     if not recorded:
         print("MISMATCH: prereg was never frozen (no frozen_sha256) — refusing to score")
-        return 1
+        return 1, None
     try:
         actual = sha256_of(frozen_view(prereg))
     except ValueError:
         print("MISMATCH: prereg is no longer canonically serializable — refusing to score")
-        return 1
+        return 1, None
     if actual != recorded:
         print(f"MISMATCH: recorded {recorded} != recomputed {actual} — "
               "the criteria changed after freezing; refusing to score")
-        return 1
+        return 1, None
     print(f"INTACT: {path} sha256={recorded}")
-    return 0
+    return 0, prereg
+
+
+def cmd_check(path: Path) -> int:
+    rc, _ = _verify(path)
+    return rc
 
 
 def cmd_eval(prereg_path: Path, results_path: Path, out: Path | None) -> int:
-    if cmd_check(prereg_path) != 0:
+    rc, prereg = _verify(prereg_path)
+    if rc != 0 or prereg is None:
         print("VERDICT: NO_VERDICT prereg hash mismatch")
         return 2
-    prereg = strict_load_path(prereg_path)
     shape = _shape_errors(prereg)
     if shape:
         # A pre-0.2.1 freeze could stamp a malformed prereg; treat it as an

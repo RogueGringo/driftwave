@@ -55,6 +55,8 @@ ARTIFACTS_DIR = .dw/artifacts/   (create if not exists; state dir resolution:
    ├─ Output: artifacts/synthesis.json (SynthesisMap schema, not_acceptance: true)
    ├─ Validate: dw_validate.py .dw/artifacts/synthesis.json --schema synthesis_map.json
    ├─ DISPATCH gini-watchdog after every 2 sections; obey ASCEND/REPROBE/HOLD/SPLIT
+   ├─ slope < pinned gini_reprobe_slope (-0.01, driftwave.pin.json)? → REPROBE
+   │  regardless of the watchdog's tone — the threshold is pinned, not judged
    ├─ open loops > 0? → iterate within L2 (max 3)
    └─ all loops closed + positive slope → proceed to L3
 

@@ -19,7 +19,9 @@ before the next layer may consume it (UPWARD_FLOW, enforced not aspirational).
 
 1. **L0 — Ingest**: Scan the codebase, produce RawCloud
    - `mkdir -p .dw/artifacts`
-   - Dispatch dw-ingest agent OR run topo.sh scan (summary-only fallback)
+   - Dispatch the dw-ingest agent (the pipeline REQUIRES a RawCloud; `topo.sh
+     scan` is a counts-only status fallback that cannot feed L1 — if the agent
+     path is unavailable, stop here and say so)
    - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json --schema raw_cloud.json`
    - Check entropy gate (pinned: >0.1)
 
