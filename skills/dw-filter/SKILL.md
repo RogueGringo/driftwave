@@ -13,11 +13,16 @@ Construct the Vietoris-Rips complex across an adaptive epsilon-range. Compute H�
 
 ## Adaptive Scale (ADAPTIVE_SCALE Axiom)
 
-The filtration range is NEVER fixed by the user. It is extracted from the data's own geometry:
+The filtration scale is NEVER fixed by the user. It is extracted from the data's own geometry:
 
-- epsilon_max = 95th percentile of pairwise distances in the point cloud
+- The cluster cut is the **median bar lifetime** — exactly what
+  `compute_persistence.py` computes, pinned in driftwave.pin.json (earlier
+  docs said "95th percentile of pairwise distances"; the code never did that)
 - The number of clusters that emerge is determined by where the natural gaps fall
 - Sometimes 2 approaches, sometimes 5 — determined by persistence, not preference
+- Known property (see docs/HARNESS.md): most merges are intra-group, so the
+  median cut lands inside the intra-group distribution — jittered tight groups
+  can fragment. The selftest asserts recovery on exact fixtures for this reason.
 
 ## H₀ Barcode Interpretation
 

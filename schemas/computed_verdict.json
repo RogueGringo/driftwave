@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:jtopo:driftwave:schema:computed_verdict",
+  "title": "ComputedVerdict",
+  "description": "The artifact dw_verdict.py eval writes with --out: the mechanical evaluation of a frozen pre-registration. The 'artifact' discriminator distinguishes it from the preregistration it answers (both carry prereg_id).",
+  "type": "object",
+  "required": ["artifact", "prereg_id", "prereg_sha256", "verdict", "verdict_reason", "provenance"],
+  "properties": {
+    "artifact": { "const": "computed_verdict" },
+    "prereg_id": { "type": "string" },
+    "prereg_sha256": { "type": "string" },
+    "results_sha256": { "type": "string" },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "passed"],
+        "properties": {
+          "name": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["positive", "null_evidence"] },
+          "status": { "type": "string", "enum": ["PASS", "FAIL", "MANUAL"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL", "NULL", "CERTIFIED_NULL", "NO_VERDICT"] },
+    "verdict_reason": { "type": "string" },
+    "provenance": {
+      "type": "object",
+      "required": ["producer", "plugin_version", "tier"],
+      "properties": {
+        "producer": { "type": "string" },
+        "plugin_version": { "type": "string" },
+        "tier": { "type": "string", "enum": ["real", "heuristic", "planned"] }
+      }
+    }
+  }
+}

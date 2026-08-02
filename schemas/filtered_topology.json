@@ -42,7 +42,38 @@
       "items": { "type": "array", "items": { "type": "number" } },
       "description": "Pairwise distance matrix for visualization"
     },
-    "routing": { "type": "string", "enum": ["ASCEND", "REPROBE", "SPLIT"] },
-    "routing_reason": { "type": "string" }
+    "routing": { "type": "string", "enum": ["ASCEND", "REPROBE", "SPLIT", "HOLD"] },
+    "routing_reason": { "type": "string" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "caveat": { "type": "string", "description": "In-band honesty: what this artifact must not be read as (e.g. the dw-bench 'descriptive, not load-bearing' result)" },
+    "null_check": {
+      "type": "object",
+      "description": "Seeded decoy negative control: the same scorer on column-shuffled features. Informational only — a decoy win is necessary, not sufficient, for structure.",
+      "properties": {
+        "seed": { "type": "integer" },
+        "native_top_lifetime": { "type": "number" },
+        "decoy_top_lifetime": { "type": "number" },
+        "beats_decoy": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    },
+    "flags": { "type": "array", "items": { "type": "string" }, "description": "Closed significance vocabulary pinned in driftwave.pin.json, enforced by dw_validate" },
+    "limits": { "type": "array", "items": { "type": "string" } },
+    "not_acceptance": { "type": "boolean" }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": ["producer", "plugin_version", "tier"],
+      "properties": {
+        "producer": { "type": "string" },
+        "plugin_version": { "type": "string" },
+        "tier": { "type": "string", "enum": ["real", "heuristic", "planned"] },
+        "params": { "type": "object" },
+        "feature_basis": { "type": "array", "items": { "type": "string" } },
+        "inputs": { "type": "array", "items": { "type": "object", "properties": { "path": { "type": "string" }, "sha256": { "type": "string" } } } },
+        "omitted": { "type": "array", "items": { "type": "object", "required": ["stage", "reason"], "properties": { "stage": { "type": "string" }, "reason": { "type": "string" } } } }
+      }
+    }
   }
 }

@@ -1,0 +1,11 @@
+{
+  "tests_pass": true,
+  "selftest_pass": true,
+  "persistence_fx1_sha": "9339b4562b9006d1fc4095bc4b292384d7296cff5f870a13b6895dfd22071acd",
+  "persistence_fx2_sha": "d93fffd6cfaf760eb874d292153f5da50589f51d8118b288c90233ac74308a0c",
+  "persistence_seconds_400": 0.92,
+  "audit_clean_pass": true,
+  "audit_violations_detected": 4,
+  "coherence_equivalent": true,
+  "coherence_speedup": 9.6
+}

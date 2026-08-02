@@ -12,3 +12,8 @@ models/*.gguf
 
 # SDD scratch (briefs/reports/ledger)
 .superpowers/
+
+# Per-project harness state (never committed — lives in the USER project, but guard here too)
+.dw/
+# Legacy scan artifact location (pre-0.2.0)
+.topo-artifacts.json

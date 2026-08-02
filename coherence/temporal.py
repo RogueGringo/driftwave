@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Temporal meta-persistence — how a repo's coherence evolves over its life.
+
+Reuses the cached clones from bench.py. For each repo, walk the commit history
+chronologically in K cumulative windows. At each window compute the co-change
+distance matrix over the (final) selected files using only commits up to that
+point, then measure:
+  - structure<->cochange coherence (Mantel): does the way files co-evolve come
+    to match the final directory layout? (rising = converging on its structure)
+  - co-change Gini: hierarchy/concentration of the co-change structure over time
+
+The result is a trajectory per repo = the "barcode of barcodes" evolution trace.
+"""
+import os
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import bench
+
+import sys
+
+# The corpus comes from the CLI or from what bench actually cloned — a
+# hardcoded name list here meant `/driftwave:coherence mylib=…` produced
+# evolution plots for seven repos the user never asked about (all skipped
+# as "not cloned") and none for theirs.
+def _corpus_names():
+    if len(sys.argv) > 1:
+        return sys.argv[1:]
+    cloned = []
+    if os.path.isdir(bench.REPOS):
+        cloned = sorted(d for d in os.listdir(bench.REPOS)
+                        if os.path.isdir(os.path.join(bench.REPOS, d, ".git")))
+    return cloned or [n for n, _ in bench.CORPUS]
+
+
+NAMES = _corpus_names()
+K = 12
+# Same output resolution as bench, including neural mode — a neural run's
+# evolution plots must land beside its fingerprints, not in the default out/.
+OUT = (os.path.join(bench.BASE, "out_neural")
+       if os.environ.get("INTENT_MODE") == "neural" else bench.OUT)
+
+
+def history_chrono(repo, maxc=4000):
+    # One parser (bench.parse_history) — a git-log edge-case fix must not
+    # skew trajectories against the fingerprints they're plotted beside.
+    commits = bench.parse_history(repo, maxc)
+    commits.reverse()  # oldest -> newest
+    return commits
+
+
+def trajectory(name):
+    repo = os.path.join(bench.REPOS, name)
+    if not os.path.isdir(os.path.join(repo, ".git")):
+        print(f"  [skip] {name}: not cloned")
+        return None
+    cands = bench.list_files(repo)
+    commits = history_chrono(repo)
+    files = bench.select_files(cands, commits)
+    if len(files) < 8 or len(commits) < K:
+        print(f"  [skip] {name}: files={len(files)} commits={len(commits)}")
+        return None
+    Dstruct = bench.m_structure(files, repo)
+    idx = {f: i for i, f in enumerate(files)}
+    nf = len(files)
+    n = len(commits)
+    # Accumulate co-change counts incrementally across cumulative windows so each
+    # commit is scanned once (not re-scanned K times); derive Dco per window.
+    touch = np.zeros(nf)
+    co = np.zeros((nf, nf))
+    xs, ginis, mantels = [], [], []
+    prev = 0
+    for k in range(1, K + 1):
+        end = int(round(n * k / K))
+        for _, fs in commits[prev:end]:
+            pres = [idx[f] for f in fs if f in idx]
+            for a in pres:
+                touch[a] += 1
+            for a in range(len(pres)):
+                for b in range(a + 1, len(pres)):
+                    co[pres[a], pres[b]] += 1
+                    co[pres[b], pres[a]] += 1
+        prev = end
+        Dco = bench.jaccard_distance(touch, co)
+        deaths = bench.h0(Dco)
+        ginis.append(bench.gini(deaths))
+        mantels.append(bench.mantel(Dstruct, Dco))
+        xs.append(k / K)
+    print(f"  {name}: {n} commits, {len(files)} files | "
+          f"final layout-coherence={mantels[-1]:.3f} (start {mantels[0]:.3f})")
+    return dict(name=name, xs=xs, gini=ginis, mantel=mantels, n_commits=n)
+
+
+def main():
+    os.makedirs(OUT, exist_ok=True)
+    trajs = [t for t in (trajectory(n) for n in NAMES) if t]
+    cmap = plt.cm.tab10
+    # Fig 1: layout<->evolution coherence over time
+    fig, ax = plt.subplots(figsize=(9, 6))
+    for i, t in enumerate(trajs):
+        ax.plot([x * 100 for x in t["xs"]], t["mantel"], marker="o", ms=4,
+                lw=2, color=cmap(i), label=t["name"])
+    ax.set_xlabel("project life  (% of commit history)  →", fontsize=11)
+    ax.set_ylabel("structure ↔ co-change coherence  (Mantel)", fontsize=11)
+    ax.set_title("Does each codebase converge on its own structure?\n"
+                 "rising = directory layout and how-files-co-evolve come into agreement over time", fontsize=12)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9, ncol=2)
+    fig.tight_layout()
+    p1 = os.path.join(OUT, "evolution_coherence.png")
+    fig.savefig(p1, dpi=120)
+    plt.close(fig)
+    # Fig 2: co-change Gini trajectory
+    fig, ax = plt.subplots(figsize=(9, 6))
+    for i, t in enumerate(trajs):
+        ax.plot([x * 100 for x in t["xs"]], t["gini"], marker="s", ms=4,
+                lw=2, color=cmap(i), label=t["name"])
+    ax.set_xlabel("project life  (% of commit history)  →", fontsize=11)
+    ax.set_ylabel("co-change Gini  (hierarchy of the evolution structure)", fontsize=11)
+    ax.set_title("Co-change hierarchy over time\nrising = a few modules increasingly dominate change (structure crystallizing)", fontsize=12)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9, ncol=2)
+    fig.tight_layout()
+    p2 = os.path.join(OUT, "evolution_gini.png")
+    fig.savefig(p2, dpi=120)
+    plt.close(fig)
+    print("\nPLOTS:\n  " + p1 + "\n  " + p2)
+
+
+if __name__ == "__main__":
+    main()

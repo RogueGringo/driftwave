@@ -1,0 +1,109 @@
+{
+  "prereg_id": "opt-round-1",
+  "created": "2026-08-02T14:40:00Z",
+  "question": "Can the audit become a computed mechanism and the persistence/coherence hot paths become vectorized WITHOUT changing a single output bit (persistence) or exceeding tolerance (coherence)?",
+  "non_goals": [
+    "No change to any pinned vocabulary, gate threshold, or schema semantics",
+    "No new analysis capabilities \u2014 this round is mechanism + speed only",
+    "No touching the L2/L3 heuristic layers"
+  ],
+  "baselines": [
+    "current compute_persistence.py: fx1 sha 9339b4562b9006d1fc4095bc4b292384d7296cff5f870a13b6895dfd22071acd, fx2 sha d93fffd6cfaf760eb874d292153f5da50589f51d8118b288c90233ac74308a0c, 1.917s on the 400-point cloud",
+    "current coherence pure functions (snapshotted verbatim into baseline_impls.py for side-by-side comparison)",
+    "audit today: LLM-minted AUDIT: line (the gap this round closes)"
+  ],
+  "honest_prior": "Persistence bit-identity will hold (same float ops, same tie order via lexsort); expected ~3-5x on the 400-point cloud since the decoy doubles the H0 work; coherence Jaccard/kruskal vectorization well above 5x; the audit tool should catch all 4 planted violation classes.",
+  "gates": [
+    {
+      "name": "regression_suite",
+      "predicate": {
+        "field": "tests_pass",
+        "op": "is_true"
+      }
+    },
+    {
+      "name": "selftest_instrument",
+      "predicate": {
+        "field": "selftest_pass",
+        "op": "is_true"
+      }
+    }
+  ],
+  "criteria": [
+    {
+      "id": "C1",
+      "description": "default-basis persistence output bit-identical",
+      "kind": "positive",
+      "predicate": {
+        "field": "persistence_fx1_sha",
+        "op": "==",
+        "value": "9339b4562b9006d1fc4095bc4b292384d7296cff5f870a13b6895dfd22071acd"
+      }
+    },
+    {
+      "id": "C2",
+      "description": "adapter-features persistence output bit-identical",
+      "kind": "positive",
+      "predicate": {
+        "field": "persistence_fx2_sha",
+        "op": "==",
+        "value": "d93fffd6cfaf760eb874d292153f5da50589f51d8118b288c90233ac74308a0c"
+      }
+    },
+    {
+      "id": "C3",
+      "description": ">=2x speedup on the 400-point cloud (baseline 1.917s)",
+      "kind": "positive",
+      "predicate": {
+        "field": "persistence_seconds_400",
+        "op": "<=",
+        "value": 0.96
+      }
+    },
+    {
+      "id": "C4",
+      "description": "dw_audit passes a clean planted state dir",
+      "kind": "positive",
+      "predicate": {
+        "field": "audit_clean_pass",
+        "op": "is_true"
+      }
+    },
+    {
+      "id": "C5",
+      "description": "dw_audit detects all 4 planted violation classes",
+      "kind": "positive",
+      "predicate": {
+        "field": "audit_violations_detected",
+        "op": ">=",
+        "value": 4
+      }
+    },
+    {
+      "id": "C6",
+      "description": "coherence vectorizations equivalent to snapshotted originals (jaccard<1e-12, kruskal exact, imports<1e-9)",
+      "kind": "positive",
+      "predicate": {
+        "field": "coherence_equivalent",
+        "op": "is_true"
+      }
+    },
+    {
+      "id": "C7",
+      "description": ">=5x combined speedup on the coherence synthetic battery",
+      "kind": "positive",
+      "predicate": {
+        "field": "coherence_speedup",
+        "op": ">=",
+        "value": 5.0
+      }
+    }
+  ],
+  "null_is_valid": true,
+  "verdict_semantics": {
+    "on_pass": "commit the round to stage and record the verdict artifact in docs/verification/",
+    "on_fail": "the failing optimization is reverted (bit-identity is non-negotiable); the audit tool ships only if C4+C5 pass",
+    "on_null": "record permanently; a NULL here means the optimization claims were wrong and stay out"
+  },
+  "frozen_sha256": "2d7f0cb061831e522342892d9f6dab0c832e411c8264f5697f01c70743d6c758"
+}

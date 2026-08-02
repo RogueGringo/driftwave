@@ -1,36 +1,41 @@
 ---
-description: "Show current pipeline state — which artifacts exist, what layer is active, routing history."
+description: "Show current pipeline state — which artifacts exist, what layer is active, recent directive log, routing history."
 ---
 
 # /driftwave:status
 
-Report the current state of the driftwave pipeline.
+Report the current state of the driftwave harness for this project.
 
 ## What to do
 
-Check for artifacts in `/tmp/dw-artifacts/` and report:
+Check the state dir (`$DW_STATE_DIR` → `$CLAUDE_PROJECT_DIR/.dw` → git toplevel `/.dw` → `./.dw`) and report:
 
-1. **Artifact inventory:**
+1. **Directive log** (the loop's memory):
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_log.py tail 10` — what recent
+     cycles did, and especially any `"verified": false` entries
+   - Open preregs in `.dw/prereg/` (frozen but not yet evaluated)
+
+2. **Artifact inventory** (`.dw/artifacts/`):
    - `raw.json` exists? → L0 complete. Show: file count, entropy
    - `persistence.json` exists? → Persistence computed. Show: barcode length, cluster count
-   - `filtered.json` exists? → L1 complete. Show: clusters, routing decision
-   - `synthesis.json` exists? → L2 complete. Show: sections, Gini slope, open loops
-   - `verdict.json` exists? → L3 complete. Show: verdict (ON_SHELL/OFF_SHELL), kernel_dim
+   - `filtered.json` exists? → L1 complete. Show: clusters, routing, null_check result
+   - `synthesis.json` exists? → L2 complete. Show: sections, Gini slope, open loops, deviations
+   - `verdict.json` exists? → L3 complete. Show: verdict (ON_SHELL/OFF_SHELL), findings by ID
 
-2. **Pipeline progress indicator:**
+3. **Pipeline progress indicator:**
    ```
    L0 ████████ L1 ████████ L2 ████░░░░ L3 ░░░░░░░░
    ```
 
-3. **Local LLM status:**
-   - Check if server is running: `curl -s http://localhost:8090/v1/models`
-   - Report model name and device (GPU/CPU)
-   - If not running, suggest: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/start_local_llm.sh`
-
-4. **GPU status:**
-   - `nvidia-smi` — any compute processes running?
-   - VRAM free/total
-   - If an ATFT experiment is running, note it
+4. **Integrity** (quick, artifacts-only):
+   ```bash
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py --all .dw/artifacts
+   ```
+   For the full check, `/driftwave:audit`; to prove the pipeline itself, `/driftwave:selftest`.
 
 5. **Meta-persistence:**
-   - If `/tmp/dw-artifacts/meta.json` exists, report: session count, dominant clusters, Gini meta-trajectory direction, sheaf consistency rate
+   - If `.dw/meta.json` exists, report: session count, dominant clusters, Gini meta-trajectory direction, sheaf consistency rate
+
+6. **Standing rules:** mention any FALSIFIED entry in
+   `${CLAUDE_PLUGIN_ROOT}/rules/standing_rules.json` relevant to what the user
+   is currently doing (don't recite the whole file).

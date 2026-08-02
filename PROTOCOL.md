@@ -9,6 +9,11 @@
 > H₁/sheaf computation. Today, "sheaf consistency" and "H₁ loops" are LLM-driven
 > heuristics; only H₀ clustering is computed, and the self-persistence numbers above
 > are illustrative. See [ROADMAP.md](ROADMAP.md).
+>
+> **0.2.0 update:** DW-PROTO-001 MUST-1/2/8 are now *enforced*, not aspirational —
+> `scripts/dw_validate.py` validates every artifact (schema + pin), and artifact
+> state lives in per-project `.dw/`, not `/tmp`. The operational map of what is
+> enforced vs guided is [docs/HARNESS.md](docs/HARNESS.md).
 
 ---
 
@@ -99,7 +104,7 @@ The routing protocol. Skills tell the controller WHAT to dispatch, not HOW to th
 | `/boundary-mode` | L3 sheaf-valued output | Cross-system collaboration |
 
 **Operationalization:** The skills are text prompts — they work immediately. The V2 upgrade (dispatching agents instead of prompting) requires the controller to:
-1. Create `/tmp/dw-artifacts/` directory
+1. Create the `.dw/artifacts/` directory (per-project state; was `/tmp/dw-artifacts/` pre-0.2.0)
 2. Dispatch agents via the Agent tool
 3. Read artifacts, validate schema, make routing decisions
 4. This logic lives in the CONTROLLER (main session), not in the skills
@@ -117,7 +122,7 @@ The visual topology dashboard. Three.js + Canvas visualizations.
 
 **Operationalization:**
 1. `cd docs-site && npm install && npx vite` → http://localhost:5174
-2. Dashboard reads artifacts from `/tmp/dw-artifacts/` (or API endpoint)
+2. Dashboard reads artifacts from `.dw/artifacts/` (or API endpoint)
 3. Auto-refreshes as pipeline produces new artifacts
 4. Demo mode with sample data when no pipeline is running
 
@@ -127,7 +132,7 @@ The visual topology dashboard. Three.js + Canvas visualizations.
 |-----------|------|---------|
 | SessionStart hook | `hooks/hooks.json` | Runs `topo.sh scan` + `validate` on startup |
 | Plugin config | `.claude-plugin/plugin.json` | Claude Code plugin manifest |
-| Artifact manifest | `.topo-artifacts.json` | L0 inventory of known artifacts |
+| Scan manifest | `<project>/.dw/topo-scan.json` | L0 summary written by topo.sh (replaced the committed `.topo-artifacts.json`, removed in 0.2.0) |
 | Local LLM | `scripts/start_local_llm.sh` | Adaptive GPU/CPU model server |
 | Persistence | `scripts/compute_persistence.py` | H₀ Union-Find on distance matrices |
 | Meta-persistence | `scripts/compute_meta_persistence.py` | H₀ across session history |
@@ -208,7 +213,7 @@ lms serve --port 8090
 
 ### Phase 4: Dashboard Live Connection (Day 4)
 
-1. Artifacts saved to `/tmp/dw-artifacts/` during pipeline runs
+1. Artifacts saved to `.dw/artifacts/` during pipeline runs
 2. Dashboard polls (or watches) the artifact directory
 3. ForceGraph updates when FilteredTopology changes
 4. Barcode updates when persistence recomputes
@@ -247,7 +252,7 @@ The user asked: is this dimensionalized along all context? Here's the mapping:
 |-----------|---------------|-----|
 | Schema-valid | UPWARD_FLOW | JSON Schema validation on every artifact |
 | Non-trivial | NO_AVERAGING | Entropy gate at L0 |
-| Data-driven scale | ADAPTIVE_SCALE | Epsilon from 95th percentile distances |
+| Data-driven scale | ADAPTIVE_SCALE | Cluster cut at median bar lifetime (pinned `eps_rule`) |
 | Hierarchifying | SHAPE_OVER_COUNT | Gini trajectory positive at L2 |
 | Phase-transition routed | WAYPOINT_ROUTING | ASCEND/REPROBE/SPLIT at each layer |
 | GPU-aware | ADAPTIVE_SCALE (infra) | Auto-detect GPU/CPU for model selection |

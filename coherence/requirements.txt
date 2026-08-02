@@ -1,0 +1,8 @@
+# Core — numpy-only TF-IDF intent channel + plots (no scipy: Mantel, ARI,
+# gini, and entropy are all hand-rolled on numpy)
+numpy>=1.24
+matplotlib>=3.7
+
+# Optional — INTENT_MODE=neural (sentence embeddings for the intent channel)
+# transformers>=4.40
+# torch>=2.1

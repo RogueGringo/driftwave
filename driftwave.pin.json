@@ -1,0 +1,61 @@
+{
+  "pin_version": "1",
+  "ontology": "driftwave_pin — locked invariants. The loop reads these; no agent, command, or artifact may retune them. Changing the pin is a human git commit, never a runtime act.",
+  "axioms": [
+    "NO_AVERAGING",
+    "UPWARD_FLOW",
+    "WAYPOINT_ROUTING",
+    "SHAPE_OVER_COUNT",
+    "ADAPTIVE_SCALE"
+  ],
+  "honesty_tiers": ["real", "heuristic", "planned"],
+  "layer_tiers": {
+    "L2": "heuristic",
+    "L3": "heuristic"
+  },
+  "layer_tiers_note": "The tier is derived from the layer, not trusted from self-report: L2/L3 are LLM judgment by construction, so dw_validate requires their artifacts to declare heuristic provenance and stamp not_acceptance regardless of what the producing agent wrote. L0/L1 are unmapped: L1 is the disclosed mixed case (computed record + LLM labels, see docs/HARNESS.md).",
+  "verdict_vocabulary": ["PASS", "FAIL", "NULL", "CERTIFIED_NULL", "NO_VERDICT"],
+  "consistency_vocabulary": ["ON_SHELL", "OFF_SHELL"],
+  "routing_vocabulary": ["ASCEND", "REPROBE", "SPLIT", "HOLD"],
+  "flag_vocabulary": [
+    "persistent_structure",
+    "no_structure",
+    "beats_decoy",
+    "fails_decoy",
+    "stage_omitted"
+  ],
+  "flag_vocabulary_note": "flags[] is the ONLY sanctioned significance channel on an artifact. A flag not in this list is a validation failure, not a new feature. Every flag here has a real emitter (compute_persistence.py); a new flag is appended in the same human git commit that adds its emitter — pinning signals nothing can produce just makes readers reason about states that never occur.",
+  "prohibited_lexicon": [
+    "proves",
+    "proven",
+    "guarantees",
+    "guaranteed",
+    "definitively",
+    "infallible",
+    "revolutionary",
+    "breakthrough"
+  ],
+  "prohibited_lexicon_note": "Overclaim words may never appear in an artifact's claim-bearing fields (labels, reasons, findings). Enforced by dw_validate, not by good intentions.",
+  "claim_fields": [
+    "label",
+    "centroid_description",
+    "routing_reason",
+    "verdict_reason",
+    "claim",
+    "incompatibility",
+    "feature",
+    "rule",
+    "question"
+  ],
+  "gates": {
+    "entropy_min": 0.1,
+    "split_cluster_threshold": 3,
+    "max_reprobe_iterations": 3,
+    "eps_rule": "median-bar-lifetime",
+    "gini_reprobe_slope": -0.01
+  },
+  "state": {
+    "dir_resolution": "DW_STATE_DIR > $CLAUDE_PROJECT_DIR/.dw > <git toplevel>/.dw > ./.dw",
+    "never": "/tmp — wiped on reboot, shared across projects; using it broke the cross-session memory claim (0.1.x)"
+  }
+}

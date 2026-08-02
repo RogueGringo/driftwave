@@ -53,9 +53,21 @@ else
   _proj_slug="$(printf '%s' "$PROJECT_ROOT" | sed 's#[/\\:]#-#g')"
   MEMORY_DIR="$HOME/.claude/projects/${_proj_slug}/memory"
 fi
-FRAMEWORK_DIR="$PROJECT_ROOT/docs/framework_theories"
-EXPERIMENT_LOG="$PROJECT_ROOT/docs/EXPERIMENT_LOG.md"
-ARTIFACT_LOG="$PLUGIN_ROOT/.topo-artifacts.json"
+# Per-project persistent state. The canonical resolver is Python
+# (dw_common.py state-dir) so bash never drifts from it; the inline chain is
+# only the no-python fallback. Never PLUGIN_ROOT: the hook used to rewrite a
+# committed file inside the installed plugin's git tree every session. Never
+# /tmp: wiped on reboot, shared across projects.
+STATE_DIR="$(python3 "$SCRIPT_DIR/dw_common.py" state-dir 2>/dev/null || python "$SCRIPT_DIR/dw_common.py" state-dir 2>/dev/null)"
+[ -z "$STATE_DIR" ] && STATE_DIR="${DW_STATE_DIR:-$PROJECT_ROOT/.dw}"
+ARTIFACT_LOG="$STATE_DIR/topo-scan.json"
+
+# Self-gitignore the state dir so `git add -A` in the USER'S repo never
+# commits per-machine harness state.
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  [ -f "$STATE_DIR/.gitignore" ] || printf '*\n' > "$STATE_DIR/.gitignore" 2>/dev/null
+}
 
 # ─── Helpers ───
 banner() {
@@ -89,7 +101,16 @@ cmd_scan() {
   local git_branch git_status git_log_count untracked modified
   cd "$PROJECT_ROOT"
 
-  git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+  # `git rev-parse --abbrev-ref HEAD` on an unborn HEAD prints "HEAD" AND
+  # exits 128, so `|| echo` used to yield the two-line value "HEAD\ndetached"
+  # — a raw newline inside the JSON manifest (strictly invalid). show-current
+  # prints nothing in that case; symbolic-ref is the git<2.22 fallback
+  # (show-current shipped in 2.22, and its error would silently record
+  # 'detached' on every older box). Sanitize for JSON embedding either way.
+  git_branch=$(git branch --show-current 2>/dev/null | head -n1)
+  [ -z "$git_branch" ] && git_branch=$(git symbolic-ref --short -q HEAD 2>/dev/null | head -n1)
+  [ -z "$git_branch" ] && git_branch="detached"
+  git_branch=$(printf '%s' "$git_branch" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')
   info "Branch: ${BOLD}$git_branch${RESET}"
 
   untracked=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l | tr -d ' ')
@@ -132,11 +153,11 @@ cmd_scan() {
   fi
   ok "Memory files: ${BOLD}$memory_count${RESET}"
 
-  # Framework theories
-  if [ -d "$FRAMEWORK_DIR" ]; then
-    framework_count=$(find "$FRAMEWORK_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
+  # Docs (any top-level docs dir — no assumed monorepo layout)
+  if [ -d "$PROJECT_ROOT/docs" ]; then
+    framework_count=$(find "$PROJECT_ROOT/docs" -type f 2>/dev/null | wc -l | tr -d ' ')
   fi
-  ok "Framework documents: ${BOLD}$framework_count${RESET}"
+  ok "Docs: ${BOLD}$framework_count${RESET}"
 
   # Tests
   if [ -d "$PROJECT_ROOT/tests" ]; then
@@ -156,11 +177,25 @@ cmd_scan() {
   fi
   ok "Asset images: ${BOLD}$image_count${RESET}"
 
+  # One-time 0.1.x migration: the old /tmp location may still hold live
+  # history on a machine that hasn't rebooted — carry it into .dw/ instead of
+  # silently starting the memory from zero.
+  if [ -d /tmp/dw-artifacts ] && [ ! -f "$STATE_DIR/directive.log" ]; then
+    ensure_state_dir
+    for legacy in directive.log meta.json; do
+      if [ -f "/tmp/dw-artifacts/$legacy" ]; then
+        cp "/tmp/dw-artifacts/$legacy" "$STATE_DIR/$legacy" 2>/dev/null && \
+          info "migrated 0.1.x $legacy from /tmp/dw-artifacts into $STATE_DIR"
+      fi
+    done
+  fi
+
   # Write raw artifact manifest (NO_AVERAGING — each point preserved)
+  ensure_state_dir
   cat > "$ARTIFACT_LOG" << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "layer": "L0",
+  "kind": "topo-scan",
   "branch": "$git_branch",
   "commits": $git_log_count,
   "modified": $modified,
@@ -168,7 +203,7 @@ cmd_scan() {
   "artifacts": {
     "skills": $skill_count,
     "memory": $memory_count,
-    "framework_docs": $framework_count,
+    "docs": $framework_count,
     "tests": $test_count,
     "scripts": $script_count,
     "images": $image_count
@@ -178,7 +213,7 @@ cmd_scan() {
 EOF
 
   echo ""
-  ok "L0 artifact manifest written to ${DIM}.topo-artifacts.json${RESET}"
+  ok "L0 scan manifest written to ${DIM}$ARTIFACT_LOG${RESET}"
 }
 
 # ═══════════════════════════════════════════
@@ -203,57 +238,24 @@ cmd_cluster() {
   echo -e "  ${TEAL}${BOLD}  Persistent Clusters (H₀)${RESET}"
   echo ""
 
-  # Check each major area for recent activity
+  # Cluster recent changes by top-level path, derived from the repo itself —
+  # no assumed layout. (The 0.1.x version hard-coded the author's old
+  # monorepo directories, so on any other repo every bar read "stable".)
   local clusters=0
-
-  # Core ATFT code
-  local atft_changes
-  atft_changes=$(git diff --name-only HEAD~5..HEAD -- atft/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$atft_changes" -gt 0 ]; then
-    ok "ATFT core: ${BOLD}$atft_changes${RESET} files changed ${DIM}(long bar — active development)${RESET}"
+  local area count
+  while read -r count area; do
+    [ -z "$area" ] && continue
+    ok "${area}: ${BOLD}$count${RESET} file(s) changed ${DIM}(long bar — active)${RESET}"
     clusters=$((clusters + 1))
-  else
-    dim "ATFT core: stable (no recent changes)"
-  fi
+  done < <(git diff --name-only HEAD~5..HEAD 2>/dev/null \
+             | awk -F/ 'NF>1 {print $1"/"} NF==1 {print "(root)"}' \
+             | sort | uniq -c | sort -rn | head -8 | sed 's/^ *//')
+  # (`read -r count area` splits only on the first space, so directory names
+  # containing spaces survive — the old trailing `awk '{print $1, $2}'`
+  # truncated "web app/" to "web".)
 
-  # Plugin/skills
-  local plugin_changes
-  plugin_changes=$(git diff --name-only HEAD~5..HEAD -- plugins/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$plugin_changes" -gt 0 ]; then
-    ok "Driftwave plugin: ${BOLD}$plugin_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Driftwave plugin: stable"
-  fi
-
-  # Documentation
-  local docs_changes
-  docs_changes=$(git diff --name-only HEAD~5..HEAD -- docs/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$docs_changes" -gt 0 ]; then
-    ok "Documentation: ${BOLD}$docs_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Documentation: stable"
-  fi
-
-  # Site
-  local site_changes
-  site_changes=$(git diff --name-only HEAD~5..HEAD -- index.html app.js assets/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$site_changes" -gt 0 ]; then
-    ok "Website: ${BOLD}$site_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Website: stable"
-  fi
-
-  # Scripts/tests
-  local infra_changes
-  infra_changes=$(git diff --name-only HEAD~5..HEAD -- scripts/ tests/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$infra_changes" -gt 0 ]; then
-    ok "Infrastructure: ${BOLD}$infra_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Infrastructure: stable"
+  if [ "$clusters" -eq 0 ]; then
+    dim "No changes in the last 5 commits — all areas stable"
   fi
 
   echo ""
@@ -281,35 +283,33 @@ cmd_synthesize() {
     return 1
   fi
 
-  info "Checking documentation freshness..."
+  info "Checking documentation freshness (reporting only — nothing outside .dw/ is ever written)..."
   echo ""
 
   cd "$PROJECT_ROOT"
 
-  # Check EXPERIMENT_LOG
-  if [ -f "$EXPERIMENT_LOG" ]; then
-    local log_date
-    log_date=$(stat -c %Y "$EXPERIMENT_LOG" 2>/dev/null || stat -f %m "$EXPERIMENT_LOG" 2>/dev/null || echo "0")
-    local now
+  # Report staleness of top-level markdown docs; never create anything.
+  local doc
+  for doc in README.md CHANGELOG.md docs/*.md; do
+    [ -f "$doc" ] || continue
+    local doc_date now age
+    doc_date=$(stat -c %Y "$doc" 2>/dev/null || stat -f %m "$doc" 2>/dev/null || echo "0")
     now=$(date +%s)
-    local age=$(( (now - log_date) / 86400 ))
-    if [ "$age" -gt 3 ]; then
-      warn "EXPERIMENT_LOG.md is ${BOLD}${age}d old${RESET} — may need update"
+    age=$(( (now - doc_date) / 86400 ))
+    if [ "$age" -gt 30 ]; then
+      warn "$doc is ${BOLD}${age}d old${RESET}"
     else
-      ok "EXPERIMENT_LOG.md is current (${age}d old)"
+      ok "$doc (${age}d old)"
     fi
-  else
-    warn "No EXPERIMENT_LOG.md found — creating stub"
-    echo "# Experiment Log" > "$EXPERIMENT_LOG"
-    echo "" >> "$EXPERIMENT_LOG"
-    echo "Created by topo synthesize on $(date -u +%Y-%m-%d)" >> "$EXPERIMENT_LOG"
-    ok "Created $EXPERIMENT_LOG"
-  fi
+  done
 
   # Check memory index
   if [ -f "$MEMORY_DIR/MEMORY.md" ]; then
     local mem_entries
-    mem_entries=$(grep -c '\.md' "$MEMORY_DIR/MEMORY.md" 2>/dev/null || echo "0")
+    # `|| echo 0` double-counts here (grep -c prints "0" AND exits 1 on no
+    # match, yielding "0\n0") — same bug as the axiom_count fix below.
+    mem_entries=$(grep -c '\.md' "$MEMORY_DIR/MEMORY.md" 2>/dev/null || true)
+    mem_entries=${mem_entries:-0}
     local mem_files
     mem_files=$(find "$MEMORY_DIR" -name "*.md" ! -name "MEMORY.md" 2>/dev/null | wc -l | tr -d ' ')
 
@@ -320,17 +320,6 @@ cmd_synthesize() {
       ok "Memory index consistent: $mem_entries entries, $mem_files files"
     fi
   fi
-
-  # Check framework docs exist and are referenced
-  echo ""
-  info "Framework document inventory..."
-  for doc in "$FRAMEWORK_DIR"/*; do
-    if [ -f "$doc" ]; then
-      local basename
-      basename=$(basename "$doc")
-      ok "$basename"
-    fi
-  done
 
   # Check skills have valid frontmatter
   echo ""
@@ -371,19 +360,46 @@ cmd_validate() {
 
   local errors=0
 
-  # Check all referenced images exist
+  # Check referenced images exist (only when the project has an index.html —
+  # the 0.1.x version assumed one and spewed grep errors everywhere else)
   cd "$PROJECT_ROOT"
-  info "Image reference validation..."
-  while IFS= read -r img; do
-    local imgpath="${img#./}"
-    if [ ! -f "$imgpath" ]; then
-      fail "Missing image: $imgpath"
-      errors=$((errors + 1))
+  if [ -f "index.html" ]; then
+    info "Image reference validation..."
+    while IFS= read -r img; do
+      local imgpath="${img#./}"
+      if [ ! -f "$imgpath" ]; then
+        fail "Missing image: $imgpath"
+        errors=$((errors + 1))
+      fi
+    done < <(grep -oP 'src="./assets/[^"]+' index.html 2>/dev/null | sed 's/src="//')
+    if [ "$errors" -eq 0 ]; then
+      ok "All image references resolve"
     fi
-  done < <(grep -oP 'src="./assets/[^"]+' index.html | sed 's/src="//')
+  fi
 
-  if [ "$errors" -eq 0 ]; then
-    ok "All image references resolve"
+  # The pin and every schema must be valid STRICT JSON (bare NaN/Infinity
+  # rejected — the inline json.load one-liner this replaces accepted exactly
+  # the tokens the suite's P0 bug is about). One interpreter spawn for all
+  # files instead of one (or two) per file on every SessionStart.
+  local json_bad
+  json_bad=$( { python3 - "$PLUGIN_ROOT/driftwave.pin.json" "$PLUGIN_ROOT"/schemas/*.json "$PLUGIN_ROOT/rules/standing_rules.json" 2>/dev/null || python - "$PLUGIN_ROOT/driftwave.pin.json" "$PLUGIN_ROOT"/schemas/*.json "$PLUGIN_ROOT/rules/standing_rules.json" 2>/dev/null; } <<'PYEOF'
+import json, sys
+def reject(tok):
+    raise ValueError(f"non-finite constant {tok!r}")
+bad = 0
+for p in sys.argv[1:]:
+    try:
+        json.loads(open(p, encoding="utf-8").read(), parse_constant=reject)
+    except Exception as e:
+        print(f"{p}: {e}")
+        bad += 1
+sys.exit(0)
+PYEOF
+)
+  if [ -n "$json_bad" ]; then
+    while IFS= read -r line; do fail "strict-JSON: $line"; errors=$((errors + 1)); done <<< "$json_bad"
+  else
+    ok "pin + schemas + standing rules parse as strict JSON"
   fi
 
   # Check plugin.json is valid JSON
@@ -408,16 +424,18 @@ cmd_validate() {
     fi
   fi
 
-  # Check all 5 axioms are documented
+  # Check all 5 axioms are pinned (the README speaks plain English since
+  # 0.1.2 — grepping it for axiom names warned on every session)
   local axiom_count
   # `grep -c || echo 0` double-counts (grep prints "0" AND exits 1 on no match),
   # producing a "0\n0" value; use `|| true` + default for a single clean number.
-  axiom_count=$(grep -cE "AXIOM|NO_AVERAGING|UPWARD_FLOW|WAYPOINT_ROUTING|SHAPE_OVER_COUNT|ADAPTIVE_SCALE" "$PLUGIN_ROOT/README.md" 2>/dev/null || true)
+  axiom_count=$(grep -cE "NO_AVERAGING|UPWARD_FLOW|WAYPOINT_ROUTING|SHAPE_OVER_COUNT|ADAPTIVE_SCALE" "$PLUGIN_ROOT/driftwave.pin.json" 2>/dev/null || true)
   axiom_count=${axiom_count:-0}
   if [ "$axiom_count" -ge 5 ]; then
-    ok "All 5 axioms documented in README"
+    ok "All 5 axioms pinned in driftwave.pin.json"
   else
-    warn "Only $axiom_count axiom references in README"
+    fail "Only $axiom_count axiom references in driftwave.pin.json"
+    errors=$((errors + 1))
   fi
 
   echo ""

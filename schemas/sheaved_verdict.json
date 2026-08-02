@@ -39,6 +39,43 @@
       }
     },
     "verdict": { "type": "string", "enum": ["ON_SHELL", "OFF_SHELL"] },
-    "verdict_reason": { "type": "string" }
+    "verdict_reason": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "description": "Named findings with stable IDs. A finding may not be closed without a witness — a test, check, or artifact whose existence demonstrates the repair. Finding -> repair -> witness is the review's audit trail.",
+      "items": {
+        "type": "object",
+        "required": ["id", "claim", "tier", "verdict"],
+        "properties": {
+          "id": { "type": "string", "description": "Stable finding ID (F1, S3, m2 style) — referenced by witnesses" },
+          "claim": { "type": "string" },
+          "tier": { "type": "string", "enum": ["real", "heuristic"], "description": "real = computed by code; heuristic = LLM judgment" },
+          "verdict": { "type": "string", "enum": ["PASS", "FAIL", "NULL", "CERTIFIED_NULL", "NO_VERDICT"] },
+          "baseline": { "type": "string", "description": "Cheapest alternative explanation this claim beats, or 'none identified'" },
+          "witness": { "type": "string", "description": "Path/name of the test or artifact that witnesses this finding's resolution" },
+          "status": { "type": "string", "enum": ["OPEN", "CLOSED"] }
+        }
+      }
+    },
+    "standing_rules_checked": { "type": "boolean", "description": "true when the review consulted rules/standing_rules.json against every finding" },
+    "prereg_sha256": { "type": "string" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "flags": { "type": "array", "items": { "type": "string" } },
+    "limits": { "type": "array", "items": { "type": "string" } },
+    "not_acceptance": { "type": "boolean", "description": "L3 review is LLM judgment (heuristic tier) — stamped true; only dw_verdict.py eval mints computed verdicts" }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": ["producer", "plugin_version", "tier"],
+      "properties": {
+        "producer": { "type": "string" },
+        "plugin_version": { "type": "string" },
+        "tier": { "type": "string", "enum": ["real", "heuristic", "planned"] },
+        "params": { "type": "object" },
+        "inputs": { "type": "array", "items": { "type": "object", "properties": { "path": { "type": "string" }, "sha256": { "type": "string" } } } },
+        "omitted": { "type": "array", "items": { "type": "object", "required": ["stage", "reason"], "properties": { "stage": { "type": "string" }, "reason": { "type": "string" } } } }
+      }
+    }
   }
 }

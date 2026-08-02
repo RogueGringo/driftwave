@@ -4,7 +4,21 @@
   "title": "RawCloud",
   "description": "L0 artifact — raw artifact scan with no interpretation. Entropy gate rejects low-variance inputs.",
   "type": "object",
-  "required": ["files", "git_state", "docs", "entropy", "layer"],
+  "required": ["files", "layer"],
+  "note": "git_state/docs/entropy are required only of CODE-repo scans by convention (dw-ingest emits them); a domain adapter (sensor export, doc set, log stream) has no git state, so requiring them at schema level blocked the exact any-domain contract the release ships. The if/then below relaxes per-file requirements in distances mode, where entries carry only a path.",
+  "if": { "not": { "required": ["distances"] } },
+  "then": {
+    "properties": {
+      "files": {
+        "items": {
+          "anyOf": [
+            { "required": ["language", "size_bytes"] },
+            { "required": ["features"] }
+          ]
+        }
+      }
+    }
+  },
   "properties": {
     "layer": { "const": "L0" },
     "timestamp": { "type": "string", "format": "date-time" },
@@ -16,16 +30,35 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["path", "language", "size_bytes"],
+        "required": ["path"],
         "properties": {
           "path": { "type": "string" },
           "content_hash": { "type": "string" },
           "language": { "type": "string" },
           "size_bytes": { "type": "integer" },
-          "staleness_days": { "type": "number" }
+          "staleness_days": { "type": "number" },
+          "features": {
+            "type": "array",
+            "items": { "type": "number" },
+            "description": "Domain-adapter channels: named numeric features on a fixed frame (all entries the same length). When present these replace the default [size, staleness, language] basis, so ANY domain — code, docs, logs, sensor exports — feeds the same pipeline."
+          }
         }
       }
     },
+    "feature_names": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Channel names for the adapter feature frame, index-aligned with files[].features"
+    },
+    "distances": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "number" } },
+      "description": "Optional precomputed pairwise distance matrix (row order = files order). Skips feature extraction; the decoy null check is omitted (and says so) since there is no feature basis to shuffle."
+    },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "flags": { "type": "array", "items": { "type": "string" }, "description": "Significance flags — the ONLY sanctioned significance channel; closed vocabulary pinned in driftwave.pin.json, enforced by dw_validate" },
+    "limits": { "type": "array", "items": { "type": "string" }, "description": "Concrete known limitations declared at the point of output" },
+    "not_acceptance": { "type": "boolean", "description": "true = exploratory output that must never be read as a certified result" },
     "git_state": {
       "type": "object",
       "properties": {
@@ -52,6 +85,41 @@
           "path": { "type": "string" },
           "staleness_days": { "type": "number" },
           "type": { "type": "string", "enum": ["spec", "plan", "log", "theory", "guide", "readme"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "description": "Who/what produced this artifact, at which honesty tier, from which inputs. Skipped stages get an explicit omitted entry — an honest schema slot, never silence.",
+      "required": ["producer", "plugin_version", "tier"],
+      "properties": {
+        "producer": { "type": "string" },
+        "plugin_version": { "type": "string" },
+        "tier": { "type": "string", "enum": ["real", "heuristic", "planned"] },
+        "params": { "type": "object" },
+        "feature_basis": { "type": "array", "items": { "type": "string" } },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "sha256": { "type": "string" }
+            }
+          }
+        },
+        "omitted": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["stage", "reason"],
+            "properties": {
+              "stage": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
         }
       }
     }
