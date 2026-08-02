@@ -170,10 +170,97 @@ def test_gini_slope_divisor():
     print("PASS test_gini_slope_divisor")
 
 
+def test_provenance_and_null_check():
+    """0.2.0: L1 artifacts carry a provenance block, the dw-bench caveat, a
+    pinned-vocabulary flags list, and a seeded decoy null_check."""
+    out = strict_loads(run("compute_persistence.py", SAMPLE_RAW))
+    prov = out.get("provenance")
+    assert prov and prov["producer"] == "compute_persistence.py", "missing provenance"
+    assert prov["tier"] == "real", "H0 computation is real tier"
+    assert "caveat" in out and "dw-bench" in out["caveat"], "dw-bench caveat must ride in-band"
+    nc = out.get("null_check")
+    assert nc and isinstance(nc.get("beats_decoy"), bool) and "seed" in nc, "null_check malformed"
+    pin = json.loads((ROOT / "driftwave.pin.json").read_text(encoding="utf-8"))
+    assert set(out.get("flags", [])) <= set(pin["flag_vocabulary"]), \
+        f"flags outside pinned vocabulary: {out.get('flags')}"
+    maybe_validate(out, "filtered_topology.json")
+    print("PASS test_provenance_and_null_check")
+
+
+def test_features_channel_adapter():
+    """0.2.0 domain-adapter contract: per-file `features` arrays replace the
+    default basis; mixed lengths are rejected with REPROBE, not a crash."""
+    good = {"files": [
+        {"path": "a", "features": [0.0, 1.0]}, {"path": "b", "features": [0.1, 1.0]},
+        {"path": "c", "features": [5.0, -1.0]}, {"path": "d", "features": [5.1, -1.0]},
+    ]}
+    out = strict_loads(run("compute_persistence.py", good))
+    assert out["provenance"]["feature_basis"] == ["channel_0", "channel_1"], \
+        "adapter channels must be the recorded basis"
+    mixed = {"files": [{"path": "a", "features": [1.0]}, {"path": "b", "features": [1.0, 2.0]}]}
+    out2 = strict_loads(run("compute_persistence.py", mixed))
+    assert out2["routing"] == "REPROBE" and "mixed lengths" in out2["routing_reason"]
+    print("PASS test_features_channel_adapter")
+
+
+def test_validator_rejects_pin_violations():
+    """dw_validate must reject off-vocabulary flags/routing and prohibited
+    lexicon in claim fields — the pin is enforced, not advisory."""
+    bad = strict_loads(run("compute_persistence.py", SAMPLE_RAW))
+    bad["flags"] = ["novel_flag"]
+    bad["routing_reason"] = "this proves the design is sound"
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS / "dw_validate.py"), "-"],
+        input=json.dumps(bad), capture_output=True, text=True)
+    assert proc.returncode == 1, "pin violations must fail validation"
+    assert "flag vocabulary" in proc.stdout and "prohibited lexicon" in proc.stdout, proc.stdout
+    ok = strict_loads(run("compute_persistence.py", SAMPLE_RAW))
+    proc2 = subprocess.run(
+        [sys.executable, str(SCRIPTS / "dw_validate.py"), "-", "--strict"],
+        input=json.dumps(ok), capture_output=True, text=True)
+    assert proc2.returncode == 0, f"clean artifact must pass strict validation: {proc2.stdout}"
+    print("PASS test_validator_rejects_pin_violations")
+
+
+def test_verdict_freeze_and_tamper():
+    """The verdict spine: freeze stamps a hash, eval computes the grammar,
+    edited criteria refuse to score, re-freeze is refused."""
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="dw-test-"))
+    p = tmp / "prereg.json"
+    p.write_text(json.dumps({
+        "prereg_id": "t1", "question": "toy", "null_is_valid": True,
+        "criteria": [{"id": "C1", "kind": "positive",
+                      "predicate": {"field": "m", "op": ">=", "value": 1}}]}),
+        encoding="utf-8")
+    r = tmp / "results.json"
+    r.write_text(json.dumps({"m": 2}), encoding="utf-8")
+
+    def verdict(*args):
+        return subprocess.run([sys.executable, str(SCRIPTS / "dw_verdict.py"), *args],
+                              capture_output=True, text=True)
+
+    assert verdict("freeze", str(p)).returncode == 0
+    assert verdict("freeze", str(p)).returncode != 0, "re-freeze must be refused"
+    ev = verdict("eval", str(p), str(r))
+    assert ev.returncode == 0 and "VERDICT: PASS" in ev.stdout, ev.stdout
+    doc = json.loads(p.read_text(encoding="utf-8"))
+    doc["criteria"][0]["predicate"]["value"] = 99
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    tam = verdict("eval", str(p), str(r))
+    assert tam.returncode != 0 and "NO_VERDICT" in tam.stdout, \
+        "tampered criteria must refuse to score"
+    print("PASS test_verdict_freeze_and_tamper")
+
+
 if __name__ == "__main__":
     test_persistence()
     test_meta_persistence()
     test_single_file_still_valid()
     test_per_cluster_bar_length()
     test_gini_slope_divisor()
+    test_provenance_and_null_check()
+    test_features_channel_adapter()
+    test_validator_rejects_pin_violations()
+    test_verdict_freeze_and_tamper()
     print("\nAll artifact-JSON tests passed.")

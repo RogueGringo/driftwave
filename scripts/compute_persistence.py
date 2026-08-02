@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
 """Compute persistent homology on artifact distance matrices.
 
-Same mathematics as atft/topology/ but applied to code/idea spaces
-instead of zeta zero point clouds. Reads a RawCloud JSON artifact
-from stdin, outputs barcode + distance matrix as JSON to stdout.
+Reads a RawCloud JSON artifact from stdin, outputs barcode + distance matrix
+as JSON to stdout.
 
 Usage:
-    cat /tmp/dw-artifacts/raw.json | python3 compute_persistence.py
+    cat .dw/artifacts/raw.json | python3 compute_persistence.py
+
+Domain adapters: any domain (code repo, doc set, log stream, sensor export)
+can feed this pipeline by emitting a RawCloud whose file entries carry a
+"features" array of numeric channels — all entries the same length, globally
+min-max normalized here. When present, those channels REPLACE the default
+[size_bytes, staleness_days, language-hash] basis. A precomputed top-level
+"distances" matrix skips feature extraction entirely.
+
+Honesty note (dw-bench, experiments/structure-recovery): on the structure-
+recovery benchmark, H0 clustering on the default basis did NOT beat standard
+community detection (Louvain/Ward). The clustering is real computed math and
+is useful as a descriptive map; it is not load-bearing evidence on its own.
+The emitted `caveat` and `null_check` fields carry that honesty in-band.
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 import hashlib
 import numpy as np
+
+PLUGIN_VERSION = "0.2.0"
+DEFAULT_BASIS = ["size_bytes", "staleness_days", "language_hash"]
 
 
 def file_feature_vector(f: dict) -> np.ndarray:
@@ -200,6 +216,51 @@ def identify_clusters(D: np.ndarray, barcodes: list[dict],
     return clusters, noise
 
 
+def top_finite_lifetime(barcodes: list[dict]) -> float:
+    finite = [b["death"] - b["birth"] for b in barcodes if not b.get("infinite")]
+    return float(max(finite)) if finite else 0.0
+
+
+def null_check(features: np.ndarray, native_top: float) -> dict:
+    """Seeded decoy negative control: shuffle each feature column independently
+    across items, breaking cross-channel structure while preserving each
+    channel's marginal distribution, then rerun the same scorer. 'Structure
+    present' should beat its own decoy — informational, never an acceptance.
+    """
+    seed = int(os.environ.get("DW_DECOY_SEED", "7"))
+    rng = np.random.default_rng(seed)
+    decoy = features.copy()
+    for col in range(decoy.shape[1]):
+        rng.shuffle(decoy[:, col])
+    decoy_top = top_finite_lifetime(compute_h0_persistence(compute_distance_matrix(decoy)))
+    beats = native_top > decoy_top
+    return {
+        "seed": seed,
+        "native_top_lifetime": native_top,
+        "decoy_top_lifetime": decoy_top,
+        "beats_decoy": beats,
+        "note": "informational only — a decoy win is necessary, not sufficient, for structure",
+    }
+
+
+def build_provenance(basis: list[str], n: int, extra_params: dict | None = None) -> dict:
+    params = {"eps_rule": "median-bar-lifetime", "n_items": n}
+    if extra_params:
+        params.update(extra_params)
+    return {
+        "producer": "compute_persistence.py",
+        "plugin_version": PLUGIN_VERSION,
+        "tier": "real",
+        "params": params,
+        "feature_basis": basis,
+    }
+
+
+CAVEAT = ("descriptive map, not load-bearing evidence: on the dw-bench "
+          "structure-recovery benchmark, H0 clustering did not beat standard "
+          "community detection (see experiments/structure-recovery)")
+
+
 def main():
     raw = json.load(sys.stdin)
     files = raw.get("files", [])
@@ -213,17 +274,40 @@ def main():
             "clusters": [],
             "noise": [f["path"] for f in files],
             "routing": "REPROBE",
-            "routing_reason": "Fewer than 2 artifacts — need more input"
+            "routing_reason": "Fewer than 2 artifacts — need more input",
+            "provenance": build_provenance(DEFAULT_BASIS, n),
+            "caveat": CAVEAT,
+            "flags": ["no_structure"],
         }
         json.dump(result, sys.stdout, indent=2)
         return
 
-    # Build feature matrix
-    features = np.array([file_feature_vector(f) for f in files])
-    features = normalize_features(features)
-
-    # Compute distance matrix
-    D = compute_distance_matrix(features)
+    features = None
+    omitted = None
+    if isinstance(raw.get("distances"), list) and raw["distances"]:
+        # Precomputed distance matrix from a domain adapter.
+        D = np.asarray(raw["distances"], dtype=np.float64)
+        basis = ["precomputed_distances"]
+        omitted = [{"stage": "null_check",
+                    "reason": "precomputed distances — no feature basis to shuffle"}]
+    else:
+        if all(isinstance(f.get("features"), list) and f["features"] for f in files):
+            widths = {len(f["features"]) for f in files}
+            if len(widths) != 1:
+                print(json.dumps({
+                    "layer": "L1", "barcode": [], "distances": [], "clusters": [],
+                    "noise": [], "routing": "REPROBE",
+                    "routing_reason": f"features arrays have mixed lengths {sorted(widths)} — "
+                                      "a domain adapter must emit one fixed frame",
+                }, indent=2))
+                return
+            features = np.array([f["features"] for f in files], dtype=np.float64)
+            basis = [f"channel_{i}" for i in range(features.shape[1])]
+        else:
+            features = np.array([file_feature_vector(f) for f in files])
+            basis = DEFAULT_BASIS
+        features = normalize_features(features)
+        D = compute_distance_matrix(features)
 
     # Compute H₀ persistence
     barcodes = compute_h0_persistence(D)
@@ -243,6 +327,7 @@ def main():
         routing = "ASCEND"
         routing_reason = f"{n_clusters} stable cluster(s) identified"
 
+    flags = ["persistent_structure"] if n_clusters else ["no_structure"]
     result = {
         "layer": "L1",
         "barcode": barcodes,
@@ -250,8 +335,18 @@ def main():
         "clusters": clusters,
         "noise": noise,
         "routing": routing,
-        "routing_reason": routing_reason
+        "routing_reason": routing_reason,
+        "provenance": build_provenance(basis, n),
+        "caveat": CAVEAT,
     }
+    if features is not None:
+        nc = null_check(features, top_finite_lifetime(barcodes))
+        result["null_check"] = nc
+        flags.append("beats_decoy" if nc["beats_decoy"] else "fails_decoy")
+    else:
+        result["provenance"]["omitted"] = omitted
+        flags.append("stage_omitted")
+    result["flags"] = flags
 
     json.dump(result, sys.stdout, indent=2)
 

@@ -1,9 +1,13 @@
 # Python dependencies for the driftwave reference-pipeline scripts
-# (compute_persistence.py, compute_meta_persistence.py).
+# (compute_persistence.py, compute_meta_persistence.py, dw_selftest.py G1-G5/G7).
 #
-# The core /driftwave:directive loop needs none of this; these are only
-# required when /driftwave:run, /driftwave:filter, or /driftwave:meta shell
-# out to the persistent-homology computations.
+# The core /driftwave:directive loop needs none of this; the verification
+# spine (dw_validate.py, dw_verdict.py) is stdlib-only by design. numpy is
+# only required when /driftwave:run, /driftwave:filter, /driftwave:meta, or
+# /driftwave:selftest shell out to the persistent-homology computations.
+#
+# jsonschema is OPTIONAL: dw_validate.py uses it when present and falls back
+# to a built-in structural check when absent.
 #
 #   pip install -r plugins/driftwave/scripts/requirements.txt
 numpy>=1.24

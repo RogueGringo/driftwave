@@ -10,7 +10,7 @@ What ideas keep coming back? What patterns are structural?
 What was the industry throwing away when they discarded speculative rejects?
 
 Usage:
-    cat /tmp/dw-artifacts/meta.json | python3 compute_meta_persistence.py
+    cat .dw/meta.json | python3 compute_meta_persistence.py
 
 Input: MetaPersistence JSON (accumulated session history)
 Output: Updated MetaPersistence with computed meta_barcode and convergence_signature

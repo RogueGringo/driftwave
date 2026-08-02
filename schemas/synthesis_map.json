@@ -18,7 +18,8 @@
           "content": { "type": "string" },
           "source_cluster": { "type": "integer" },
           "coherence_score": { "type": "number", "minimum": 0, "maximum": 1 },
-          "gini_slope": { "type": "number" }
+          "gini_slope": { "type": "number" },
+          "baseline": { "type": "string", "description": "The cheapest already-available alternative this section's approach claims to beat — or 'none identified', which the review stage treats as a red flag" }
         }
       }
     },
@@ -35,6 +36,38 @@
       }
     },
     "trajectory": { "type": "array", "items": { "type": "number" } },
-    "routing": { "type": "string", "enum": ["ASCEND", "REPROBE", "SPLIT"] }
+    "routing": { "type": "string", "enum": ["ASCEND", "REPROBE", "SPLIT", "HOLD"] },
+    "deviations": {
+      "type": "array",
+      "description": "Disclosed divergences from the pre-registration or spec. Empty array = attested no deviation. Undisclosed divergence is what the review stage exists to reject.",
+      "items": {
+        "type": "object",
+        "required": ["clause", "actual", "why"],
+        "properties": {
+          "clause": { "type": "string", "description": "What the spec/prereg said" },
+          "actual": { "type": "string", "description": "What was done instead" },
+          "why": { "type": "string" }
+        }
+      }
+    },
+    "prereg_sha256": { "type": "string", "description": "Hash of the frozen pre-registration this synthesis answers to (dw_verdict.py freeze)" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "flags": { "type": "array", "items": { "type": "string" } },
+    "limits": { "type": "array", "items": { "type": "string" } },
+    "not_acceptance": { "type": "boolean", "description": "L2 synthesis is LLM judgment (heuristic tier) — stamped true so it can never be read as a certified result" }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": ["producer", "plugin_version", "tier"],
+      "properties": {
+        "producer": { "type": "string" },
+        "plugin_version": { "type": "string" },
+        "tier": { "type": "string", "enum": ["real", "heuristic", "planned"] },
+        "params": { "type": "object" },
+        "inputs": { "type": "array", "items": { "type": "object", "properties": { "path": { "type": "string" }, "sha256": { "type": "string" } } } },
+        "omitted": { "type": "array", "items": { "type": "object", "required": ["stage", "reason"], "properties": { "stage": { "type": "string" }, "reason": { "type": "string" } } } }
+      }
+    }
   }
 }
