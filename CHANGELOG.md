@@ -143,6 +143,35 @@ finding is fixed, with regression tests:
   binding must provide, and machine-checkable conformance (selftest +
   regression suite + validate must pass in the port's environment).
 
+### Optimized (opt-round-1 — pre-registered, computed VERDICT: PASS)
+
+This round ran through the harness's own spine: criteria frozen
+(`sha256 2d7f0cb0…`) BEFORE implementation, evaluated mechanically afterward.
+The frozen prereg, results, computed verdict artifact, and the verbatim
+baseline implementations used for equivalence proofs are committed under
+`docs/verification/2026-08-02-optimization-round/`.
+
+- **`scripts/dw_audit.py`** — the audit is now a mechanism: schema + pin
+  validation, prereg freeze-hash checks, `prereg_sha256` cross-references,
+  witness-on-CLOSED, legacy downgrades — ending in a computed
+  `AUDIT: PASS/FAIL` line with a hard exit code. This closes the last place
+  prose was allowed to mint a verdict-shaped token (C4: clean planted state
+  PASSes; C5: all 4 planted violation classes detected).
+- **Persistence hot path vectorized** with proven bit-identity: distance
+  matrix by broadcasting, edge sort via `np.lexsort((j, i, d))` reproducing
+  the old tuple sort's tie order exactly. Output hashes on the frozen
+  fixtures are unchanged byte-for-byte (C1, C2); the 400-point cloud runs
+  **2.1× faster** (1.917s → 0.92s, C3) — the decoy control doubles the win.
+- **Coherence hot paths vectorized** with side-by-side equivalence against
+  the snapshotted originals (C6: Jaccard exact to 0, kruskal exactly equal
+  including planted ties, imports-cosine ≤ 1e-16): one `_kruskal` pass now
+  serves both `h0` and `labels_k` (the duplicated union-find is gone), the
+  co-change/temporal Jaccard blocks are three numpy lines, and the imports
+  distance is one row-normalize + matmul. Combined battery: **9.6× faster**
+  (C7).
+- Two new regression tests pin all of it (`test_audit_mechanism`,
+  `test_vectorized_persistence_unchanged`) — 15 total.
+
 ### Removed
 - The stale committed `.topo-artifacts.json` (a scan snapshot of a different
   repo from 2026-03), plus its PLUGIN_ROOT write path.

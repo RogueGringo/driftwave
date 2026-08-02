@@ -10,32 +10,22 @@ If the artifacts can't prove the run, the run isn't proven.
 
 ## What to do
 
-1. Validate every artifact in the state dir against its schema and the pin:
+1. Run the audit MECHANISM — the cross-checks and the final verdict line are
+   computed, never composed by you:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py --all .dw/artifacts --strict
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_audit.py
    ```
-2. For every prereg in `.dw/prereg/`, verify the freeze hash:
-   ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_verdict.py check .dw/prereg/<id>.json
-   ```
-3. Cross-checks from the artifacts (read, don't recompute):
-   - every artifact carrying `prereg_sha256` matches a frozen prereg's hash
-   - heuristic-tier artifacts carry `not_acceptance: true`
-   - any `omitted` stages state a reason
-   - findings marked CLOSED name a `witness`
-4. Report findings leveled **fail / warn / info** with the artifact path for
-   each, and end with one line:
-   - `AUDIT: PASS` — everything on disk is internally consistent
-   - `AUDIT: FAIL <n> finding(s)` — list them; a failed audit means the run's
-     conclusions are unsupported by its own record
+   (optional argument: a specific state dir; default is the canonical one)
+2. Report its output **verbatim** — the leveled `fail:/warn:/info:` findings
+   and the final computed line (`AUDIT: PASS …` or `AUDIT: FAIL n finding(s)`).
+   You may add context around the output; you never replace or restate the
+   AUDIT: line in your own words. A failed audit means the run's conclusions
+   are unsupported by its own record.
 
-## Legacy artifacts
-
-`--strict` requires provenance blocks, which pre-0.2.0 artifacts don't carry.
-When a state dir contains 0.1.x-era artifacts, audit them at the default level
-and report them as `warn: legacy (pre-provenance) artifact` — a run that was
-valid when produced is not retroactively FAIL, but it also can't claim the
-0.2 guarantees.
+What the tool checks from disk alone: every artifact against schema + pin,
+every frozen prereg's hash, every `prereg_sha256` reference resolving to a
+frozen prereg, CLOSED findings carrying witnesses, and legacy (pre-0.2)
+artifacts downgraded to warnings rather than failed retroactively.
 
 ## What this is not
 

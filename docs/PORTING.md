@@ -17,6 +17,7 @@ machine-checkable, not vibes.
 | Validator (schema + pin enforcement) | `scripts/dw_validate.py`, `scripts/dw_common.py` | python3 stdlib (`jsonschema` optional) |
 | Verdict engine (freeze / eval / parse) | `scripts/dw_verdict.py` | python3 stdlib |
 | Log mechanism (append / tail) | `scripts/dw_log.py` | python3 stdlib |
+| Computed audit (`AUDIT:` verdict with exit code) | `scripts/dw_audit.py` | python3 stdlib |
 | Persistence + decoy control | `scripts/compute_persistence.py`, `compute_meta_persistence.py` | python3 + numpy |
 | The conformance instrument | `scripts/dw_selftest.py` | python3 (+ numpy for G1–G5/G7/G8) |
 

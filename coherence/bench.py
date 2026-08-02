@@ -179,6 +179,45 @@ def m_structure(files, repo):
     return normalize01(D)
 
 
+def jaccard_distance(touch, co):
+    """1 - Jaccard over co-change counts, vectorized (used by m_cochange and
+    temporal.trajectory — ~n^2 interpreted iterations per call before)."""
+    denom = touch[:, None] + touch[None, :] - co
+    D = 1.0 - np.divide(co, denom, out=np.zeros_like(co, dtype=float), where=denom > 0)
+    np.fill_diagonal(D, 0.0)
+    return D
+
+
+def _kruskal(D, stop_at_k=None):
+    """One single-linkage pass serving both h0 (merge deaths) and labels_k
+    (component labels at k) — the same union-find existed twice, and a
+    tie-ordering fix to one copy would have silently skewed barcodes against
+    cluster labels. lexsort keys (j, i, d) reproduce sorted((d,i,j)) exactly."""
+    n = D.shape[0]
+    iu, ju = np.triu_indices(n, 1)
+    dd = D[iu, ju]
+    order = np.lexsort((ju, iu, dd))
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    deaths = []
+    comps = n
+    for idx in order:
+        if stop_at_k is not None and comps <= stop_at_k:
+            break
+        ri, rj = find(int(iu[idx])), find(int(ju[idx]))
+        if ri != rj:
+            parent[rj] = ri
+            deaths.append(float(dd[idx]))
+            comps -= 1
+    return deaths, [find(i) for i in range(n)]
+
+
 def m_cochange(files, commits):
     idx = {f: k for k, f in enumerate(files)}
     n = len(files)
@@ -192,12 +231,7 @@ def m_cochange(files, commits):
             for b in range(a + 1, len(pres)):
                 co[pres[a], pres[b]] += 1
                 co[pres[b], pres[a]] += 1
-    D = np.ones((n, n))
-    for i in range(n):
-        for j in range(i + 1, n):
-            denom = touch[i] + touch[j] - co[i, j]
-            jac = co[i, j] / denom if denom > 0 else 0.0
-            D[i, j] = D[j, i] = 1.0 - jac
+    D = jaccard_distance(touch, co)
     np.fill_diagonal(D, 0.0)
     return D
 
@@ -238,15 +272,16 @@ def m_imports(files, repo):
                     A[i, t] = 1  # directed: file f imports target t
     # distance: a direct dependency (either direction) is near; otherwise the
     # cosine of out-edge rows (files with similar dependency sets are close).
-    D = np.ones((n, n))
-    for i in range(n):
-        for j in range(i + 1, n):
-            if A[i, j] > 0 or A[j, i] > 0:
-                D[i, j] = D[j, i] = 0.1
-            else:
-                ni, nj = np.linalg.norm(A[i]), np.linalg.norm(A[j])
-                if ni > 0 and nj > 0:
-                    D[i, j] = D[j, i] = 1.0 - np.dot(A[i], A[j]) / (ni * nj)
+    # Vectorized: one row-normalize + one matmul instead of ~n^2/2 tiny
+    # norm/dot calls per repo.
+    norms = np.linalg.norm(A, axis=1)
+    safe = np.maximum(norms, 1e-300)
+    An = A / safe[:, None]
+    cos = An @ An.T
+    both = (norms > 0)[:, None] & (norms > 0)[None, :]
+    D = np.where(both, 1.0 - cos, 1.0)
+    direct = (A + A.T) > 0
+    D = np.where(direct, 0.1, D)
     np.fill_diagonal(D, 0.0)
     return D
 
@@ -339,22 +374,7 @@ def m_intent_neural(files, repo, file_msgs):
 
 # ---- persistence / metrics ------------------------------------------------
 def h0(D):
-    n = D.shape[0]
-    edges = sorted((D[i, j], i, j) for i in range(n) for j in range(i + 1, n))
-    parent = list(range(n))
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    deaths = []
-    for d, i, j in edges:
-        ri, rj = find(i), find(j)
-        if ri != rj:
-            parent[rj] = ri
-            deaths.append(d)
+    deaths, _ = _kruskal(D)
     return deaths  # n-1 finite bar lengths (births=0)
 
 
@@ -366,25 +386,8 @@ def labels_k(D, k):
     dominant source of ARI instability under a single distance threshold.
     """
     n = D.shape[0]
-    k = max(1, min(k, n))
-    edges = sorted((D[i, j], i, j) for i in range(n) for j in range(i + 1, n))
-    parent = list(range(n))
-    comps = n
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for d, i, j in edges:
-        if comps <= k:
-            break
-        ri, rj = find(i), find(j)
-        if ri != rj:
-            parent[rj] = ri
-            comps -= 1
-    return [find(i) for i in range(n)]
+    _, labels = _kruskal(D, stop_at_k=max(1, min(k, n)))
+    return labels
 
 
 def gini(vals):

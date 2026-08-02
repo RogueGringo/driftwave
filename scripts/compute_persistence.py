@@ -65,14 +65,14 @@ def normalize_features(features: np.ndarray) -> np.ndarray:
 
 
 def compute_distance_matrix(features: np.ndarray) -> np.ndarray:
-    """Compute pairwise Euclidean distance matrix."""
-    n = features.shape[0]
-    D = np.zeros((n, n), dtype=np.float64)
-    for i in range(n):
-        for j in range(i + 1, n):
-            d = np.sqrt(np.sum((features[i] - features[j]) ** 2))
-            D[i, j] = d
-            D[j, i] = d
+    """Compute pairwise Euclidean distance matrix (vectorized).
+
+    Bit-compatible with the per-pair loop it replaced: the broadcasted
+    difference/square/sum performs the same float ops in the same order per
+    element pair (verified by frozen output hashes in opt-round-1)."""
+    diff = features[:, None, :] - features[None, :, :]
+    D = np.sqrt((diff ** 2).sum(axis=-1))
+    np.fill_diagonal(D, 0.0)
     return D
 
 
@@ -111,15 +111,15 @@ def compute_h0_persistence(D: np.ndarray) -> list[dict]:
         })
         del births[rb]
 
-    # Sort edges by distance
-    edges = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            edges.append((D[i, j], i, j))
-    edges.sort()
-
-    for eps, i, j in edges:
-        union(i, j, eps)
+    # Edge generation + sort vectorized; lexsort keys (j, i, d) reproduce the
+    # old python tuple sort's (d, i, j) lexicographic order EXACTLY, so equal-
+    # distance ties break identically and the barcode is bit-stable across the
+    # rewrite (the n^2 tuple build + sort was the dominant cost).
+    iu, ju = np.triu_indices(n, 1)
+    dd = D[iu, ju]
+    order = np.lexsort((ju, iu, dd))
+    for idx in order:
+        union(int(iu[idx]), int(ju[idx]), float(dd[idx]))
 
     # Remaining components live forever (infinite persistence).
     # Serialize the infinite death as JSON null + an "infinite" flag: a bare
@@ -178,10 +178,11 @@ def identify_clusters(D: np.ndarray, barcodes: list[dict],
         if ra != rb:
             parent[rb] = ra
 
-    for i in range(n):
-        for j in range(i + 1, n):
-            if D[i, j] <= eps_cut:
-                union(i, j)
+    # Same row-major i<j union order as the loop it replaces; only the pair
+    # enumeration moved to numpy.
+    iu, ju = np.triu_indices(n, 1)
+    for i, j in zip(iu[D[iu, ju] <= eps_cut], ju[D[iu, ju] <= eps_cut]):
+        union(int(i), int(j))
 
     # Group files by component
     clusters_map = {}
@@ -215,7 +216,7 @@ def identify_clusters(D: np.ndarray, barcodes: list[dict],
                 "members": member_paths,
             }
             if outside:
-                cluster["bar_length"] = float(min(D[m, o] for m in members for o in outside))
+                cluster["bar_length"] = float(D[np.ix_(members, outside)].min())
             else:
                 # Sole surviving component — infinitely persistent.
                 cluster["bar_length"] = None

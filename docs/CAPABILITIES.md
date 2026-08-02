@@ -18,7 +18,7 @@ the dimensional map, and [README.md](../README.md) for the plain-language tour.
 | `/driftwave:status` | — | Session state: log tail, open preregs, artifact inventory, quick integrity check. | ✅ | nothing |
 | `/driftwave:preregister` | spine | Freeze decision criteria (sha256) before the work runs; both verdict branches pre-committed. | ✅ | nothing |
 | `/driftwave:selftest` | spine | Whole pipeline headless on planted fixtures with known ground truth (G1–G8); non-zero exit on failure. | ✅ | `numpy` for G1–G5/G7/G8 (G6, the verdict spine, is stdlib; skipped checks exit 2, never pass) |
-| `/driftwave:audit` | spine | Artifacts-only re-verification: schema + pin + freeze hashes. No re-analysis. | ✅ | nothing |
+| `/driftwave:audit` | spine | Artifacts-only re-verification via `dw_audit.py` — the AUDIT verdict is computed with a hard exit code, reported verbatim, never prose-minted. | ✅ | stock `python3` |
 | `/driftwave:ingest` | L0 | Raw artifact scan into an unaveraged point cloud (falls back to `topo.sh scan`, which emits counts only — and says so). | ✅ | optional |
 | `/driftwave:filter` | L1 | H₀ persistent clustering (real Union-Find), with provenance, in-band dw-bench caveat, and a seeded decoy null check. | ✅ | `numpy` |
 | `/driftwave:synthesize` | L2 | Design synthesis with per-section baselines, disclosed deviations, gini-watchdog checkpoints; "H₁ loop" detection. | 🟡 LLM heuristic (stamped `not_acceptance`) | nothing |
@@ -56,6 +56,7 @@ the dimensional map, and [README.md](../README.md) for the plain-language tour.
 | `scripts/dw_validate.py` | Strict-JSON + schema + pin validation of every artifact (the enforcement behind every "validate" step) | ✅ real | stdlib (`jsonschema` optional, structural fallback built-in) |
 | `scripts/dw_verdict.py` | Prereg freeze (sha256) / tamper check / mechanical verdict eval (float-tolerant equality) / grammar parse | ✅ real | stdlib |
 | `scripts/dw_log.py` | Directive-log mechanism: `append` (tool-owned escaping + location) and `tail` | ✅ real | stdlib |
+| `scripts/dw_audit.py` | Computed artifacts-only audit: schema + pin + freeze hashes + prereg_sha256 cross-refs + witness-on-CLOSED; `AUDIT: PASS/FAIL` with exit code | ✅ real | stdlib |
 | `scripts/dw_common.py` | Shared kernel + CLI: `state-dir` (canonical resolution) and `version` (read from plugin.json) | ✅ real | stdlib |
 | `scripts/dw_selftest.py` | Planted-fixture end-to-end instrument (G1–G8) | ✅ real | `numpy` for G1–G5/G7 |
 | `scripts/compute_persistence.py` | H₀ persistent homology (Union-Find); adapter features/distances input; provenance + decoy null check + in-band caveat | ✅ real | `numpy` |

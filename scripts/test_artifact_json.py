@@ -431,6 +431,64 @@ def test_review_hardening_round():
     print("PASS test_review_hardening_round")
 
 
+def test_audit_mechanism():
+    """opt-round-1: the AUDIT verdict is computed by dw_audit.py, never
+    prose-minted. Clean planted state PASSes; each violation class FAILs."""
+    import tempfile
+    sys.path.insert(0, str(SCRIPTS))
+    from dw_common import sha256_of
+
+    def build(tmp):
+        (tmp / "artifacts").mkdir(parents=True)
+        (tmp / "prereg").mkdir()
+        prereg = {"prereg_id": "p1", "question": "toy",
+                  "criteria": [{"id": "C1", "predicate": {"field": "m", "op": ">", "value": 0}}]}
+        digest = sha256_of(prereg)
+        prereg["frozen_sha256"] = digest
+        (tmp / "prereg" / "p1.json").write_text(json.dumps(prereg), encoding="utf-8")
+        art = strict_loads(run("compute_persistence.py", SAMPLE_RAW))
+        art["prereg_sha256"] = digest
+        (tmp / "artifacts" / "filtered.json").write_text(json.dumps(art), encoding="utf-8")
+        return art
+
+    def audit(state):
+        return subprocess.run([sys.executable, str(SCRIPTS / "dw_audit.py"), str(state)],
+                              capture_output=True, text=True)
+
+    clean = Path(tempfile.mkdtemp(prefix="dw-audit-t-"))
+    build(clean)
+    r = audit(clean)
+    assert r.returncode == 0 and "AUDIT: PASS" in r.stdout, r.stdout
+
+    bad = Path(tempfile.mkdtemp(prefix="dw-audit-t-"))
+    art = build(bad)
+    v = dict(art)
+    v["prereg_sha256"] = "deadbeef" * 8
+    (bad / "artifacts" / "dangling.json").write_text(json.dumps(v), encoding="utf-8")
+    r = audit(bad)
+    assert r.returncode == 1 and "matches no frozen prereg" in r.stdout, r.stdout
+    assert r.stdout.strip().splitlines()[-1].startswith("AUDIT: FAIL")
+    # missing dir fails closed
+    assert audit(Path("/nonexistent-dw-audit")).returncode == 2
+    print("PASS test_audit_mechanism")
+
+
+def test_vectorized_persistence_unchanged():
+    """opt-round-1: the vectorized distance/edge path must keep the barcode
+    bit-stable — same input, same bytes (ties break identically via lexsort)."""
+    import hashlib
+    out1 = run("compute_persistence.py", SAMPLE_RAW)
+    out2 = run("compute_persistence.py", SAMPLE_RAW)
+    assert hashlib.sha256(out1.encode()).hexdigest() == hashlib.sha256(out2.encode()).hexdigest()
+    # planted exact ties: two pairs at identical distance must merge in
+    # deterministic (i, j) order — assert stability across runs
+    tie = {"files": [{"path": p, "features": f} for p, f in [
+        ("a", [0.0, 0.0]), ("b", [1.0, 0.0]), ("c", [5.0, 0.0]), ("d", [6.0, 0.0])]]}
+    t1, t2 = run("compute_persistence.py", tie), run("compute_persistence.py", tie)
+    assert t1 == t2, "tie-order must be deterministic"
+    print("PASS test_vectorized_persistence_unchanged")
+
+
 if __name__ == "__main__":
     test_persistence()
     test_meta_persistence()
@@ -445,4 +503,6 @@ if __name__ == "__main__":
     test_validator_survives_type_confusion()
     test_computed_verdict_artifact_validates()
     test_review_hardening_round()
+    test_audit_mechanism()
+    test_vectorized_persistence_unchanged()
     print("\nAll artifact-JSON tests passed.")

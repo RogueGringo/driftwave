@@ -82,13 +82,7 @@ def trajectory(name):
                     co[pres[a], pres[b]] += 1
                     co[pres[b], pres[a]] += 1
         prev = end
-        Dco = np.ones((nf, nf))
-        for i in range(nf):
-            for j in range(i + 1, nf):
-                denom = touch[i] + touch[j] - co[i, j]
-                jac = co[i, j] / denom if denom > 0 else 0.0
-                Dco[i, j] = Dco[j, i] = 1.0 - jac
-        np.fill_diagonal(Dco, 0.0)
+        Dco = bench.jaccard_distance(touch, co)
         deaths = bench.h0(Dco)
         ginis.append(bench.gini(deaths))
         mantels.append(bench.mantel(Dstruct, Dco))
