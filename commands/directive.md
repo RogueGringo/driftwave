@@ -9,11 +9,14 @@ The fundamental operation. Everything else in driftwave is a specialization of t
 
 ## State
 
-All state lives in the per-project directory `.dw/` (resolve: `$DW_STATE_DIR` env
-override → `$CLAUDE_PROJECT_DIR/.dw` → git toplevel `/.dw` → `./.dw`). Never `/tmp`
-— it is wiped on reboot and shared across projects, which is why the 0.1.x memory
-claims were dead wiring. Ensure `.dw/` is in the project's `.gitignore` (add it if
-missing, telling the user).
+All state lives in the per-project directory `.dw/`. The canonical resolver is
+`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_common.py state-dir` — use it rather
+than re-deriving the chain (`$DW_STATE_DIR` → `$CLAUDE_PROJECT_DIR/.dw` → git
+toplevel → cwd), so every writer and reader agree on ONE directory even from a
+subdirectory cwd. Never `/tmp` — wiped on reboot, shared across projects; that
+is why the 0.1.x memory claims were dead wiring. The tools self-gitignore the
+dir (`.dw/.gitignore` containing `*`), so the user's repo stays clean without
+touching their `.gitignore`.
 
 ## Process
 
@@ -24,8 +27,8 @@ You receive a request. You do this:
 **Subagent A — WHAT IS** (Explore agent, quick)
 ```
 Scan the current state relevant to this request:
-- Read the last ~20 lines of .dw/directive.log (JSONL) — report what previous
-  cycles did, what worked, and what FAILED. Mistakes repeat unless read.
+- Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_log.py tail 20` — report what
+  previous cycles did, what worked, and what FAILED. Mistakes repeat unless read.
 - What files exist that this touches?
 - What's the git state? Any uncommitted work?
 - What docs/specs/plans exist? Any .dw/prereg/*.json still open?
@@ -86,10 +89,10 @@ BEFORE doing the work — criteria chosen after seeing results are not criteria:
 
 For each action in the gap list:
 1. Do the action (write code, edit file, run command)
-2. Log it — append one **JSONL** line (structured, because Subagent A reads this
-   back next cycle):
+2. Log it via the mechanism — escaping and location are the tool's job, so a
+   quote in your action text can never corrupt next cycle's memory:
    ```bash
-   mkdir -p .dw && printf '%s\n' '{"ts":"<ISO-8601>","action":"<what>","result":"<happened>","verified":<true|false>}' >> .dw/directive.log
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_log.py append "<what>" "<happened>" true
    ```
 3. Check it worked (the SUCCESS criteria from Step 1B)
 4. If it failed → stop, log `"verified":false`, report, ask

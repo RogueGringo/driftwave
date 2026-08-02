@@ -53,12 +53,21 @@ else
   _proj_slug="$(printf '%s' "$PROJECT_ROOT" | sed 's#[/\\:]#-#g')"
   MEMORY_DIR="$HOME/.claude/projects/${_proj_slug}/memory"
 fi
-# Per-project persistent state (matches scripts/dw_common.py state_dir()).
-# Never PLUGIN_ROOT: the hook used to rewrite a committed file inside the
-# installed plugin's git tree every session. Never /tmp: wiped on reboot,
-# shared across projects.
-STATE_DIR="${DW_STATE_DIR:-$PROJECT_ROOT/.dw}"
+# Per-project persistent state. The canonical resolver is Python
+# (dw_common.py state-dir) so bash never drifts from it; the inline chain is
+# only the no-python fallback. Never PLUGIN_ROOT: the hook used to rewrite a
+# committed file inside the installed plugin's git tree every session. Never
+# /tmp: wiped on reboot, shared across projects.
+STATE_DIR="$(python3 "$SCRIPT_DIR/dw_common.py" state-dir 2>/dev/null || python "$SCRIPT_DIR/dw_common.py" state-dir 2>/dev/null)"
+[ -z "$STATE_DIR" ] && STATE_DIR="${DW_STATE_DIR:-$PROJECT_ROOT/.dw}"
 ARTIFACT_LOG="$STATE_DIR/topo-scan.json"
+
+# Self-gitignore the state dir so `git add -A` in the USER'S repo never
+# commits per-machine harness state.
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  [ -f "$STATE_DIR/.gitignore" ] || printf '*\n' > "$STATE_DIR/.gitignore" 2>/dev/null
+}
 
 # ─── Helpers ───
 banner() {
@@ -95,8 +104,11 @@ cmd_scan() {
   # `git rev-parse --abbrev-ref HEAD` on an unborn HEAD prints "HEAD" AND
   # exits 128, so `|| echo` used to yield the two-line value "HEAD\ndetached"
   # — a raw newline inside the JSON manifest (strictly invalid). show-current
-  # prints nothing in that case; sanitize for JSON embedding either way.
+  # prints nothing in that case; symbolic-ref is the git<2.22 fallback
+  # (show-current shipped in 2.22, and its error would silently record
+  # 'detached' on every older box). Sanitize for JSON embedding either way.
   git_branch=$(git branch --show-current 2>/dev/null | head -n1)
+  [ -z "$git_branch" ] && git_branch=$(git symbolic-ref --short -q HEAD 2>/dev/null | head -n1)
   [ -z "$git_branch" ] && git_branch="detached"
   git_branch=$(printf '%s' "$git_branch" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')
   info "Branch: ${BOLD}$git_branch${RESET}"
@@ -165,8 +177,21 @@ cmd_scan() {
   fi
   ok "Asset images: ${BOLD}$image_count${RESET}"
 
+  # One-time 0.1.x migration: the old /tmp location may still hold live
+  # history on a machine that hasn't rebooted — carry it into .dw/ instead of
+  # silently starting the memory from zero.
+  if [ -d /tmp/dw-artifacts ] && [ ! -f "$STATE_DIR/directive.log" ]; then
+    ensure_state_dir
+    for legacy in directive.log meta.json; do
+      if [ -f "/tmp/dw-artifacts/$legacy" ]; then
+        cp "/tmp/dw-artifacts/$legacy" "$STATE_DIR/$legacy" 2>/dev/null && \
+          info "migrated 0.1.x $legacy from /tmp/dw-artifacts into $STATE_DIR"
+      fi
+    done
+  fi
+
   # Write raw artifact manifest (NO_AVERAGING — each point preserved)
-  mkdir -p "$STATE_DIR" 2>/dev/null
+  ensure_state_dir
   cat > "$ARTIFACT_LOG" << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -224,7 +249,10 @@ cmd_cluster() {
     clusters=$((clusters + 1))
   done < <(git diff --name-only HEAD~5..HEAD 2>/dev/null \
              | awk -F/ 'NF>1 {print $1"/"} NF==1 {print "(root)"}' \
-             | sort | uniq -c | sort -rn | head -8 | awk '{print $1, $2}')
+             | sort | uniq -c | sort -rn | head -8 | sed 's/^ *//')
+  # (`read -r count area` splits only on the first space, so directory names
+  # containing spaces survive — the old trailing `awk '{print $1, $2}'`
+  # truncated "web app/" to "web".)
 
   if [ "$clusters" -eq 0 ]; then
     dim "No changes in the last 5 commits — all areas stable"
@@ -349,19 +377,30 @@ cmd_validate() {
     fi
   fi
 
-  # The pin and every schema must be valid strict JSON — the vocabularies
-  # dw_validate enforces live there, so a broken pin fails closed loudly.
-  local jf
-  for jf in "$PLUGIN_ROOT/driftwave.pin.json" "$PLUGIN_ROOT"/schemas/*.json "$PLUGIN_ROOT/rules/standing_rules.json"; do
-    [ -f "$jf" ] || continue
-    if python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$jf" 2>/dev/null || python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$jf" 2>/dev/null; then
-      :
-    else
-      fail "$(basename "$jf") is INVALID JSON"
-      errors=$((errors + 1))
-    fi
-  done
-  ok "pin + schemas + standing rules parse as strict JSON"
+  # The pin and every schema must be valid STRICT JSON (bare NaN/Infinity
+  # rejected — the inline json.load one-liner this replaces accepted exactly
+  # the tokens the suite's P0 bug is about). One interpreter spawn for all
+  # files instead of one (or two) per file on every SessionStart.
+  local json_bad
+  json_bad=$( { python3 - "$PLUGIN_ROOT/driftwave.pin.json" "$PLUGIN_ROOT"/schemas/*.json "$PLUGIN_ROOT/rules/standing_rules.json" 2>/dev/null || python - "$PLUGIN_ROOT/driftwave.pin.json" "$PLUGIN_ROOT"/schemas/*.json "$PLUGIN_ROOT/rules/standing_rules.json" 2>/dev/null; } <<'PYEOF'
+import json, sys
+def reject(tok):
+    raise ValueError(f"non-finite constant {tok!r}")
+bad = 0
+for p in sys.argv[1:]:
+    try:
+        json.loads(open(p, encoding="utf-8").read(), parse_constant=reject)
+    except Exception as e:
+        print(f"{p}: {e}")
+        bad += 1
+sys.exit(0)
+PYEOF
+)
+  if [ -n "$json_bad" ]; then
+    while IFS= read -r line; do fail "strict-JSON: $line"; errors=$((errors + 1)); done <<< "$json_bad"
+  else
+    ok "pin + schemas + standing rules parse as strict JSON"
+  fi
 
   # Check plugin.json is valid JSON
   local plugin_json="$PLUGIN_ROOT/.claude-plugin/plugin.json"

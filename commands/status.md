@@ -11,8 +11,8 @@ Report the current state of the driftwave harness for this project.
 Check the state dir (`$DW_STATE_DIR` → `$CLAUDE_PROJECT_DIR/.dw` → git toplevel `/.dw` → `./.dw`) and report:
 
 1. **Directive log** (the loop's memory):
-   - Last ~10 lines of `.dw/directive.log` (JSONL) — what recent cycles did,
-     and especially any `"verified": false` entries
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_log.py tail 10` — what recent
+     cycles did, and especially any `"verified": false` entries
    - Open preregs in `.dw/prereg/` (frozen but not yet evaluated)
 
 2. **Artifact inventory** (`.dw/artifacts/`):

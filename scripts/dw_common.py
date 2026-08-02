@@ -14,7 +14,20 @@ import subprocess
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-PLUGIN_VERSION = "0.2.0"
+
+
+def _read_plugin_version() -> str:
+    """Single source of truth: the plugin manifest. Three scripts used to
+    carry private '0.2.0' constants that a version bump would silently skew."""
+    try:
+        manifest = json.loads(
+            (PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        return str(manifest["version"])
+    except (OSError, json.JSONDecodeError, KeyError):
+        return "unknown"
+
+
+PLUGIN_VERSION = _read_plugin_version()
 
 # Serialized artifacts must be strict JSON: a bare Infinity/NaN token is
 # rejected by JS JSON.parse and jq, which breaks every downstream consumer
@@ -65,6 +78,18 @@ def state_dir() -> Path:
     return Path.cwd() / ".dw"
 
 
+def ensure_state_dir() -> Path:
+    """Create the state dir if needed, self-gitignored: a `.dw/.gitignore`
+    containing `*` keeps per-machine harness state out of `git add -A` in the
+    USER'S repo without touching their .gitignore."""
+    d = state_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    marker = d / ".gitignore"
+    if not marker.exists():
+        marker.write_text("*\n", encoding="utf-8")
+    return d
+
+
 def load_pin() -> dict:
     """The pin is the locked invariant registry. Fail closed: a harness whose
     invariants cannot be found must not certify anything."""
@@ -92,6 +117,22 @@ def provenance(producer: str, tier: str, inputs=None, params=None, omitted=None)
     return block
 
 
+def _cli(argv):
+    """Tiny host-neutral CLI so bash/markdown never re-implement resolution:
+        python3 dw_common.py state-dir   -> print the resolved state dir
+        python3 dw_common.py version     -> print the plugin version
+    """
+    if argv[:1] == ["state-dir"]:
+        print(state_dir())
+        return 0
+    if argv[:1] == ["version"]:
+        print(PLUGIN_VERSION)
+        return 0
+    print(__doc__)
+    print("subcommands: state-dir | version")
+    return 2
+
+
 def iter_claim_fields(obj, claim_fields, path=""):
     """Yield (json_path, text) for every claim-bearing string field.
 
@@ -109,3 +150,8 @@ def iter_claim_fields(obj, claim_fields, path=""):
     elif isinstance(obj, list):
         for i, v in enumerate(obj):
             yield from iter_claim_fields(v, claim_fields, f"{path}[{i}]")
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _sys.exit(_cli(_sys.argv[1:]))
