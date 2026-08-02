@@ -53,9 +53,12 @@ else
   _proj_slug="$(printf '%s' "$PROJECT_ROOT" | sed 's#[/\\:]#-#g')"
   MEMORY_DIR="$HOME/.claude/projects/${_proj_slug}/memory"
 fi
-FRAMEWORK_DIR="$PROJECT_ROOT/docs/framework_theories"
-EXPERIMENT_LOG="$PROJECT_ROOT/docs/EXPERIMENT_LOG.md"
-ARTIFACT_LOG="$PLUGIN_ROOT/.topo-artifacts.json"
+# Per-project persistent state (matches scripts/dw_common.py state_dir()).
+# Never PLUGIN_ROOT: the hook used to rewrite a committed file inside the
+# installed plugin's git tree every session. Never /tmp: wiped on reboot,
+# shared across projects.
+STATE_DIR="${DW_STATE_DIR:-$PROJECT_ROOT/.dw}"
+ARTIFACT_LOG="$STATE_DIR/topo-scan.json"
 
 # ─── Helpers ───
 banner() {
@@ -132,11 +135,11 @@ cmd_scan() {
   fi
   ok "Memory files: ${BOLD}$memory_count${RESET}"
 
-  # Framework theories
-  if [ -d "$FRAMEWORK_DIR" ]; then
-    framework_count=$(find "$FRAMEWORK_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
+  # Docs (any top-level docs dir — no assumed monorepo layout)
+  if [ -d "$PROJECT_ROOT/docs" ]; then
+    framework_count=$(find "$PROJECT_ROOT/docs" -type f 2>/dev/null | wc -l | tr -d ' ')
   fi
-  ok "Framework documents: ${BOLD}$framework_count${RESET}"
+  ok "Docs: ${BOLD}$framework_count${RESET}"
 
   # Tests
   if [ -d "$PROJECT_ROOT/tests" ]; then
@@ -157,6 +160,7 @@ cmd_scan() {
   ok "Asset images: ${BOLD}$image_count${RESET}"
 
   # Write raw artifact manifest (NO_AVERAGING — each point preserved)
+  mkdir -p "$STATE_DIR" 2>/dev/null
   cat > "$ARTIFACT_LOG" << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -168,7 +172,7 @@ cmd_scan() {
   "artifacts": {
     "skills": $skill_count,
     "memory": $memory_count,
-    "framework_docs": $framework_count,
+    "docs": $framework_count,
     "tests": $test_count,
     "scripts": $script_count,
     "images": $image_count
@@ -178,7 +182,7 @@ cmd_scan() {
 EOF
 
   echo ""
-  ok "L0 artifact manifest written to ${DIM}.topo-artifacts.json${RESET}"
+  ok "L0 scan manifest written to ${DIM}$ARTIFACT_LOG${RESET}"
 }
 
 # ═══════════════════════════════════════════
@@ -203,57 +207,21 @@ cmd_cluster() {
   echo -e "  ${TEAL}${BOLD}  Persistent Clusters (H₀)${RESET}"
   echo ""
 
-  # Check each major area for recent activity
+  # Cluster recent changes by top-level path, derived from the repo itself —
+  # no assumed layout. (The 0.1.x version hard-coded the author's old
+  # monorepo directories, so on any other repo every bar read "stable".)
   local clusters=0
-
-  # Core ATFT code
-  local atft_changes
-  atft_changes=$(git diff --name-only HEAD~5..HEAD -- atft/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$atft_changes" -gt 0 ]; then
-    ok "ATFT core: ${BOLD}$atft_changes${RESET} files changed ${DIM}(long bar — active development)${RESET}"
+  local area count
+  while read -r count area; do
+    [ -z "$area" ] && continue
+    ok "${area}: ${BOLD}$count${RESET} file(s) changed ${DIM}(long bar — active)${RESET}"
     clusters=$((clusters + 1))
-  else
-    dim "ATFT core: stable (no recent changes)"
-  fi
+  done < <(git diff --name-only HEAD~5..HEAD 2>/dev/null \
+             | awk -F/ 'NF>1 {print $1"/"} NF==1 {print "(root)"}' \
+             | sort | uniq -c | sort -rn | head -8 | awk '{print $1, $2}')
 
-  # Plugin/skills
-  local plugin_changes
-  plugin_changes=$(git diff --name-only HEAD~5..HEAD -- plugins/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$plugin_changes" -gt 0 ]; then
-    ok "Driftwave plugin: ${BOLD}$plugin_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Driftwave plugin: stable"
-  fi
-
-  # Documentation
-  local docs_changes
-  docs_changes=$(git diff --name-only HEAD~5..HEAD -- docs/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$docs_changes" -gt 0 ]; then
-    ok "Documentation: ${BOLD}$docs_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Documentation: stable"
-  fi
-
-  # Site
-  local site_changes
-  site_changes=$(git diff --name-only HEAD~5..HEAD -- index.html app.js assets/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$site_changes" -gt 0 ]; then
-    ok "Website: ${BOLD}$site_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Website: stable"
-  fi
-
-  # Scripts/tests
-  local infra_changes
-  infra_changes=$(git diff --name-only HEAD~5..HEAD -- scripts/ tests/ 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$infra_changes" -gt 0 ]; then
-    ok "Infrastructure: ${BOLD}$infra_changes${RESET} files changed ${DIM}(long bar)${RESET}"
-    clusters=$((clusters + 1))
-  else
-    dim "Infrastructure: stable"
+  if [ "$clusters" -eq 0 ]; then
+    dim "No changes in the last 5 commits — all areas stable"
   fi
 
   echo ""
@@ -281,30 +249,25 @@ cmd_synthesize() {
     return 1
   fi
 
-  info "Checking documentation freshness..."
+  info "Checking documentation freshness (read-only — a hook never creates files in your project)..."
   echo ""
 
   cd "$PROJECT_ROOT"
 
-  # Check EXPERIMENT_LOG
-  if [ -f "$EXPERIMENT_LOG" ]; then
-    local log_date
-    log_date=$(stat -c %Y "$EXPERIMENT_LOG" 2>/dev/null || stat -f %m "$EXPERIMENT_LOG" 2>/dev/null || echo "0")
-    local now
+  # Report staleness of top-level markdown docs; never create anything.
+  local doc
+  for doc in README.md CHANGELOG.md docs/*.md; do
+    [ -f "$doc" ] || continue
+    local doc_date now age
+    doc_date=$(stat -c %Y "$doc" 2>/dev/null || stat -f %m "$doc" 2>/dev/null || echo "0")
     now=$(date +%s)
-    local age=$(( (now - log_date) / 86400 ))
-    if [ "$age" -gt 3 ]; then
-      warn "EXPERIMENT_LOG.md is ${BOLD}${age}d old${RESET} — may need update"
+    age=$(( (now - doc_date) / 86400 ))
+    if [ "$age" -gt 30 ]; then
+      warn "$doc is ${BOLD}${age}d old${RESET}"
     else
-      ok "EXPERIMENT_LOG.md is current (${age}d old)"
+      ok "$doc (${age}d old)"
     fi
-  else
-    warn "No EXPERIMENT_LOG.md found — creating stub"
-    echo "# Experiment Log" > "$EXPERIMENT_LOG"
-    echo "" >> "$EXPERIMENT_LOG"
-    echo "Created by topo synthesize on $(date -u +%Y-%m-%d)" >> "$EXPERIMENT_LOG"
-    ok "Created $EXPERIMENT_LOG"
-  fi
+  done
 
   # Check memory index
   if [ -f "$MEMORY_DIR/MEMORY.md" ]; then
@@ -320,17 +283,6 @@ cmd_synthesize() {
       ok "Memory index consistent: $mem_entries entries, $mem_files files"
     fi
   fi
-
-  # Check framework docs exist and are referenced
-  echo ""
-  info "Framework document inventory..."
-  for doc in "$FRAMEWORK_DIR"/*; do
-    if [ -f "$doc" ]; then
-      local basename
-      basename=$(basename "$doc")
-      ok "$basename"
-    fi
-  done
 
   # Check skills have valid frontmatter
   echo ""
@@ -371,20 +323,36 @@ cmd_validate() {
 
   local errors=0
 
-  # Check all referenced images exist
+  # Check referenced images exist (only when the project has an index.html —
+  # the 0.1.x version assumed one and spewed grep errors everywhere else)
   cd "$PROJECT_ROOT"
-  info "Image reference validation..."
-  while IFS= read -r img; do
-    local imgpath="${img#./}"
-    if [ ! -f "$imgpath" ]; then
-      fail "Missing image: $imgpath"
+  if [ -f "index.html" ]; then
+    info "Image reference validation..."
+    while IFS= read -r img; do
+      local imgpath="${img#./}"
+      if [ ! -f "$imgpath" ]; then
+        fail "Missing image: $imgpath"
+        errors=$((errors + 1))
+      fi
+    done < <(grep -oP 'src="./assets/[^"]+' index.html 2>/dev/null | sed 's/src="//')
+    if [ "$errors" -eq 0 ]; then
+      ok "All image references resolve"
+    fi
+  fi
+
+  # The pin and every schema must be valid strict JSON — the vocabularies
+  # dw_validate enforces live there, so a broken pin fails closed loudly.
+  local jf
+  for jf in "$PLUGIN_ROOT/driftwave.pin.json" "$PLUGIN_ROOT"/schemas/*.json "$PLUGIN_ROOT/rules/standing_rules.json"; do
+    [ -f "$jf" ] || continue
+    if python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$jf" 2>/dev/null || python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$jf" 2>/dev/null; then
+      :
+    else
+      fail "$(basename "$jf") is INVALID JSON"
       errors=$((errors + 1))
     fi
-  done < <(grep -oP 'src="./assets/[^"]+' index.html | sed 's/src="//')
-
-  if [ "$errors" -eq 0 ]; then
-    ok "All image references resolve"
-  fi
+  done
+  ok "pin + schemas + standing rules parse as strict JSON"
 
   # Check plugin.json is valid JSON
   local plugin_json="$PLUGIN_ROOT/.claude-plugin/plugin.json"
