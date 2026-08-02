@@ -21,7 +21,7 @@ Run the L3 review layer. The consistency check — does the whole compose?
    computed verdicts)
 5. Validate — actually run it:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/verdict.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/verdict.json --schema sheaved_verdict.json
    ```
 
 ## After review

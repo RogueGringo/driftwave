@@ -41,6 +41,8 @@ LAYER_TO_SCHEMA = {
 
 
 def infer_schema(artifact: dict) -> str | None:
+    if artifact.get("artifact") == "computed_verdict":
+        return "computed_verdict.json"
     layer = artifact.get("layer")
     if layer in LAYER_TO_SCHEMA:
         return LAYER_TO_SCHEMA[layer]
@@ -82,7 +84,11 @@ def schema_check(artifact: dict, schema_name: str, errors: list[str]) -> str:
     if not schema_path.is_file():
         errors.append(f"schema not found: {schema_path}")
         return "missing"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        errors.append(f"schema unreadable: {schema_path}: {e}")
+        return "missing"
     try:
         import jsonschema
         try:
@@ -96,7 +102,12 @@ def schema_check(artifact: dict, schema_name: str, errors: list[str]) -> str:
 
 
 def pin_check(artifact: dict, pin: dict, errors: list[str]):
+    # Type-guarded throughout: a type-confused artifact must be reported
+    # INVALID, never crash the validator (or abort a whole --all audit).
     flags = artifact.get("flags", [])
+    if not isinstance(flags, list):
+        errors.append(f"flags: expected a list, got {type(flags).__name__}")
+        flags = []
     vocab = set(pin["flag_vocabulary"])
     for f in flags:
         if f not in vocab:
@@ -122,17 +133,33 @@ def pin_check(artifact: dict, pin: dict, errors: list[str]):
                     "overclaims are a validation failure, not a style issue"
                 )
 
-    tier = artifact.get("provenance", {}).get("tier")
+    prov = artifact.get("provenance")
+    if prov is not None and not isinstance(prov, dict):
+        errors.append(f"provenance: expected an object, got {type(prov).__name__}")
+        prov = None
+    tier = (prov or {}).get("tier")
     if tier == "heuristic" and artifact.get("not_acceptance") is not True:
         errors.append(
             "heuristic-tier artifact must carry not_acceptance: true "
             "(explore-tier output may never look like a certified result)"
         )
     for f in ("verdicts", "findings"):
-        for i, item in enumerate(artifact.get(f) or []):
+        items = artifact.get(f) or []
+        if not isinstance(items, list):
+            errors.append(f"{f}: expected a list, got {type(items).__name__}")
+            continue
+        for i, item in enumerate(items):
+            if not isinstance(item, dict):
+                errors.append(f"{f}[{i}]: expected an object, got {type(item).__name__}")
+                continue
             v = item.get("verdict")
             if v is not None and v not in pin["verdict_vocabulary"]:
                 errors.append(f"{f}[{i}].verdict: {v!r} not in pinned verdict vocabulary")
+            if item.get("status") == "CLOSED" and not item.get("witness"):
+                errors.append(
+                    f"{f}[{i}]: CLOSED without a witness — a finding may not be "
+                    "closed without one"
+                )
 
 
 def strict_check(artifact: dict, errors: list[str]):
@@ -182,13 +209,20 @@ def main(argv: list[str]) -> int:
 
     if "--all" in argv:
         base = Path(args[0]) if args else state_dir() / "artifacts"
-        files = sorted(base.glob("*.json")) if base.is_dir() else []
+        if not base.is_dir():
+            # Fail closed: an audit that scanned nothing must not read as green.
+            print(f"ERROR: {base} is not a directory — nothing was audited")
+            return 2
+        files = sorted(base.glob("*.json"))
         if not files:
-            print(f"no artifacts found under {base}")
+            print(f"no artifacts found under {base} (0 audited)")
             return 0
         failures = 0
         for f in files:
-            errs = validate_one(f.read_text(encoding="utf-8"), f.name, None, strict)
+            try:
+                errs = validate_one(f.read_text(encoding="utf-8"), f.name, None, strict)
+            except Exception as e:  # one bad artifact must not abort the audit
+                errs = [f"validator error: {type(e).__name__}: {e}"]
             if errs:
                 failures += 1
                 print(f"INVALID {f}")
@@ -215,4 +249,10 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (OSError, IndexError) as e:
+        # Environment/usage errors exit 2 per the documented contract —
+        # a missing file or dangling flag is not "artifact invalid".
+        print(f"ERROR: {type(e).__name__}: {e}")
+        sys.exit(2)

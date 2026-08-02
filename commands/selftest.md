@@ -19,9 +19,10 @@ commands ran" is not verification; this is.
    - `0` — all instrument checks green
    - `1` — a check FAILED: the pipeline is broken; stop and report, do not run
      analyses on a broken instrument
-   - `2` — numpy missing: the stdlib checks (verdict spine, pin conformance)
-     ran, the persistence checks were SKIPPED. A skipped instrument check is
-     not a pass — say so, and offer `pip install -r ${CLAUDE_PLUGIN_ROOT}/scripts/requirements.txt`
+   - `2` — numpy missing: only G6 (the verdict spine, stdlib) ran; everything
+     touching the persistence scripts — including the G8 pin-conformance check
+     on their emissions — was SKIPPED. A skipped instrument check is not a
+     pass — say so, and offer `pip install -r ${CLAUDE_PLUGIN_ROOT}/scripts/requirements.txt`
 
 ## What it checks
 

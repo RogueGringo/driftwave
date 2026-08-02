@@ -28,7 +28,7 @@ Receive a **RawCloud** artifact (L0). Run persistence computation. Identify stab
    are additive, never a replacement for the computed record
 6. Validate before reporting:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/filtered.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/filtered.json --schema filtered_topology.json
    ```
 
 ## Output Format

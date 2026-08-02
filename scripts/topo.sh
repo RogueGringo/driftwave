@@ -92,7 +92,13 @@ cmd_scan() {
   local git_branch git_status git_log_count untracked modified
   cd "$PROJECT_ROOT"
 
-  git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+  # `git rev-parse --abbrev-ref HEAD` on an unborn HEAD prints "HEAD" AND
+  # exits 128, so `|| echo` used to yield the two-line value "HEAD\ndetached"
+  # — a raw newline inside the JSON manifest (strictly invalid). show-current
+  # prints nothing in that case; sanitize for JSON embedding either way.
+  git_branch=$(git branch --show-current 2>/dev/null | head -n1)
+  [ -z "$git_branch" ] && git_branch="detached"
+  git_branch=$(printf '%s' "$git_branch" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')
   info "Branch: ${BOLD}$git_branch${RESET}"
 
   untracked=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l | tr -d ' ')
@@ -164,7 +170,7 @@ cmd_scan() {
   cat > "$ARTIFACT_LOG" << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "layer": "L0",
+  "kind": "topo-scan",
   "branch": "$git_branch",
   "commits": $git_log_count,
   "modified": $modified,
@@ -249,7 +255,7 @@ cmd_synthesize() {
     return 1
   fi
 
-  info "Checking documentation freshness (read-only — a hook never creates files in your project)..."
+  info "Checking documentation freshness (reporting only — nothing outside .dw/ is ever written)..."
   echo ""
 
   cd "$PROJECT_ROOT"
@@ -272,7 +278,10 @@ cmd_synthesize() {
   # Check memory index
   if [ -f "$MEMORY_DIR/MEMORY.md" ]; then
     local mem_entries
-    mem_entries=$(grep -c '\.md' "$MEMORY_DIR/MEMORY.md" 2>/dev/null || echo "0")
+    # `|| echo 0` double-counts here (grep -c prints "0" AND exits 1 on no
+    # match, yielding "0\n0") — same bug as the axiom_count fix below.
+    mem_entries=$(grep -c '\.md' "$MEMORY_DIR/MEMORY.md" 2>/dev/null || true)
+    mem_entries=${mem_entries:-0}
     local mem_files
     mem_files=$(find "$MEMORY_DIR" -name "*.md" ! -name "MEMORY.md" 2>/dev/null | wc -l | tr -d ' ')
 
@@ -376,16 +385,18 @@ cmd_validate() {
     fi
   fi
 
-  # Check all 5 axioms are documented
+  # Check all 5 axioms are pinned (the README speaks plain English since
+  # 0.1.2 — grepping it for axiom names warned on every session)
   local axiom_count
   # `grep -c || echo 0` double-counts (grep prints "0" AND exits 1 on no match),
   # producing a "0\n0" value; use `|| true` + default for a single clean number.
-  axiom_count=$(grep -cE "AXIOM|NO_AVERAGING|UPWARD_FLOW|WAYPOINT_ROUTING|SHAPE_OVER_COUNT|ADAPTIVE_SCALE" "$PLUGIN_ROOT/README.md" 2>/dev/null || true)
+  axiom_count=$(grep -cE "NO_AVERAGING|UPWARD_FLOW|WAYPOINT_ROUTING|SHAPE_OVER_COUNT|ADAPTIVE_SCALE" "$PLUGIN_ROOT/driftwave.pin.json" 2>/dev/null || true)
   axiom_count=${axiom_count:-0}
   if [ "$axiom_count" -ge 5 ]; then
-    ok "All 5 axioms documented in README"
+    ok "All 5 axioms pinned in driftwave.pin.json"
   else
-    warn "Only $axiom_count axiom references in README"
+    fail "Only $axiom_count axiom references in driftwave.pin.json"
+    errors=$((errors + 1))
   fi
 
   echo ""

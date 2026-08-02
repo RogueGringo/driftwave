@@ -24,7 +24,7 @@ Run meta-persistence analysis across session history.
 
 3. Validate — actually run it:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/meta.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/meta.json --schema meta_persistence.json
    ```
 
 4. Report the convergence signature:

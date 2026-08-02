@@ -33,7 +33,7 @@ Receive a **FilteredTopology** artifact (L1). For each cluster, write a design s
 7. Route based on trajectory and loop status
 8. Save to `.dw/artifacts/synthesis.json` and validate:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/synthesis.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/synthesis.json --schema synthesis_map.json
    ```
 
 ## Output Format

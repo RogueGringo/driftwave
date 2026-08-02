@@ -24,7 +24,7 @@ Run the L2 synthesis layer. Takes FilteredTopology and produces a coherent desig
    `not_acceptance: true` (L2 is LLM judgment — heuristic tier)
 7. Validate — actually run it:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/synthesis.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/synthesis.json --schema synthesis_map.json
    ```
 
 ## After synthesis

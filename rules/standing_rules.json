@@ -1,5 +1,5 @@
 {
-  "ontology": "driftwave_standing_rules — append-only failure-mode memory. Every entry was earned by a real methodology catch; the review stage checks new findings against every rule, and new catches append here via the LOG step. Rules are never deleted, only superseded with a pointer.",
+  "ontology": "driftwave_standing_rules — append-only failure-mode memory. Every entry was earned by a real methodology catch; the review stage checks new findings against every rule. New catches are appended by a human git commit to this file (project-local catches can accumulate in the project's .dw/standing_rules.local.json, which the review stage should also read when present). Rules are never deleted, only superseded with a pointer.",
   "rules": [
     {
       "id": "R1",

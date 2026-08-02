@@ -62,7 +62,7 @@ Over time, patterns emerge. Ideas that keep coming back session after session �
 Since 0.2 the loop has teeth, borrowed from a set of sibling research projects that independently converged on the same discipline:
 
 - **Frozen criteria.** For any real analysis, success criteria are frozen (sha256) *before* the work runs. The verdict is computed against them by `scripts/dw_verdict.py` — `PASS / FAIL / NULL / CERTIFIED_NULL`, fail-closed — and criteria edited after the fact refuse to score. A negative result is recorded permanently; a retry needs a new pre-registration.
-- **A locked pin.** `driftwave.pin.json` holds the invariants no agent may retune: the honesty tiers, the closed flag vocabulary, the prohibited overclaim lexicon ("proves", "guarantees", …), gate thresholds. `scripts/dw_validate.py` enforces all of it on every artifact.
+- **A locked pin.** `driftwave.pin.json` holds the invariants no agent may retune: the honesty tiers, the closed flag vocabulary, the prohibited overclaim lexicon ("proves", "guarantees", …), gate thresholds. `scripts/dw_validate.py` enforces the vocabularies, lexicon, and honesty stamps on every artifact; the gate thresholds are read by the pipeline scripts (e.g. the SPLIT threshold in `compute_persistence.py` comes from the pin, not a constant).
 - **Gates vs findings.** Instrument-correctness checks can invalidate a run; findings never can — a null finding ships with a green build.
 - **A self-proving pipeline.** `/driftwave:selftest` runs planted fixtures with known ground truth through everything and exits non-zero if any of its G1–G8 checks fail.
 - **Standing rules.** `rules/standing_rules.json` — failure modes earned by real methodology catches (never gate on a p-value without an effect-size floor; agreement is not verification; unknown never certifies) — checked by the review stage against every new finding.
@@ -148,7 +148,8 @@ That's the whole loop — and it works on more than code:
 > **Optional — the analysis pipeline.** `/driftwave:run`, `/driftwave:filter`, and
 > `/driftwave:meta` shell out to Python that computes H₀ persistent homology. Those
 > need `numpy` (`pip install numpy`; pinned in `scripts/requirements.txt`). The core
-> `/driftwave:directive` loop has no Python dependency.
+> `/driftwave:directive` loop needs no third-party packages — a stock `python3`
+> covers its freeze/verdict steps (the verification spine is stdlib-only).
 
 ## The Deeper Layer
 

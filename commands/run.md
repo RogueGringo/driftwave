@@ -1,6 +1,6 @@
 ---
 description: "Full pipeline — runs L0→L1→L2→L3 sequentially with automatic routing. The `wavefront` skill as a single invocation."
-arguments: "[task description]"
+argument-hint: "[task description]"
 ---
 
 # /driftwave:run
@@ -20,7 +20,7 @@ before the next layer may consume it (UPWARD_FLOW, enforced not aspirational).
 1. **L0 — Ingest**: Scan the codebase, produce RawCloud
    - `mkdir -p .dw/artifacts`
    - Dispatch dw-ingest agent OR run topo.sh scan (summary-only fallback)
-   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json`
+   - `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json --schema raw_cloud.json`
    - Check entropy gate (pinned: >0.1)
 
 2. **L1 — Filter**: Run persistence, identify clusters
@@ -68,7 +68,7 @@ After each layer, report:
 
 The pipeline is guided by five axioms (enforced where a tool exists, guided elsewhere):
 - NO_AVERAGING: RawCloud has no summary field
-- UPWARD_FLOW: dw_validate.py rejects wrong-layer artifacts between stages
+- UPWARD_FLOW: each stage validates with the expected --schema, so a wrong-layer artifact is rejected before the next stage consumes it
 - WAYPOINT_ROUTING: Routing on ASCEND/REPROBE/SPLIT/HOLD, not on timers
 - SHAPE_OVER_COUNT: gini-watchdog monitors trajectory, not section count
 - ADAPTIVE_SCALE: Persistence cut from data geometry (median bar lifetime, pinned)

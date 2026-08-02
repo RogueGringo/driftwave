@@ -17,9 +17,10 @@ Lettered acceptance criteria (each maps to one check below):
   G8  pin conformance: flags within vocabulary, no prohibited lexicon in
       claim fields (checked by dw_validate as part of G1, asserted here too)
 
-G1-G5 and G7 need numpy (the persistence scripts); G6 and G8 are stdlib.
-Without numpy the numpy-dependent checks are reported as SKIP and the exit
-code is 2 — a skipped instrument check is not a pass.
+G1-G5, G7, and G8 need numpy (G8 inspects the persistence script's emissions,
+so it rides the numpy fixture); G6 — the verdict spine — is stdlib. Without
+numpy the numpy-dependent checks are reported as SKIP and the exit code is 2 —
+a skipped instrument check is not a pass.
 
 Usage:  python3 scripts/dw_selftest.py
 """
@@ -201,18 +202,25 @@ def main() -> int:
                               capture_output=True, text=True)
 
     froze = verdict("freeze", str(p))
-    ev = verdict("eval", str(p), str(res))
+    vout = tmp / "verdict_out.json"
+    ev = verdict("eval", str(p), str(res), "--out", str(vout))
     grammar_ok = any(line.startswith("VERDICT: PASS") for line in ev.stdout.splitlines())
+    # The spine must accept its own output: the --out artifact validates.
+    val_out = subprocess.run(
+        [sys.executable, str(SCRIPTS / "dw_validate.py"), str(vout), "--strict"],
+        capture_output=True, text=True)
     refroze = verdict("freeze", str(p))
     tampered = json.loads(p.read_text(encoding="utf-8"))
     tampered["criteria"][0]["predicate"]["value"] = 0.1
     p.write_text(json.dumps(tampered), encoding="utf-8")
     tam = verdict("eval", str(p), str(res))
     g6 = (froze.returncode == 0 and ev.returncode == 0 and grammar_ok
+          and val_out.returncode == 0
           and refroze.returncode != 0 and tam.returncode != 0
           and "NO_VERDICT" in tam.stdout)
-    record("G6", "verdict spine (freeze/eval/tamper-refusal)", g6,
-           f"freeze={froze.returncode} eval={ev.returncode} refreeze={refroze.returncode} tamper={tam.returncode}")
+    record("G6", "verdict spine (freeze/eval/out-validates/tamper-refusal)", g6,
+           f"freeze={froze.returncode} eval={ev.returncode} out-valid={val_out.returncode} "
+           f"refreeze={refroze.returncode} tamper={tam.returncode}")
 
     # ── G7: meta-persistence strict-valid ──
     if have_numpy:

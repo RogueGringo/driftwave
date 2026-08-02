@@ -1,6 +1,6 @@
 ---
 description: "L0 — Scan the codebase (or any adapted domain) and produce a RawCloud artifact. No interpretation, just measurement."
-arguments: "[path]"
+argument-hint: "[path]"
 ---
 
 # /driftwave:ingest
@@ -15,7 +15,7 @@ Run the L0 ingestion layer. Scans the project (or specified path) and produces a
 4. Output saved to `.dw/artifacts/raw.json`
 5. Validate — actually run it, this is not prose:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json --schema raw_cloud.json
    ```
 6. Report: file count, entropy, and whether the entropy gate passes (>0.1, pinned in driftwave.pin.json)
 

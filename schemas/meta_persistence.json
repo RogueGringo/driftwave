@@ -83,6 +83,15 @@
         }
       }
     },
+    "provenance": {
+      "type": "object",
+      "description": "Who/what produced this artifact, at which honesty tier",
+      "properties": {
+        "producer": { "type": "string" },
+        "plugin_version": { "type": "string" },
+        "tier": { "type": "string", "enum": ["real", "heuristic", "planned"] }
+      }
+    },
     "convergence_signature": {
       "type": "object",
       "description": "The topological fingerprint of the entire project trajectory. Like the K=200 spectral sum finding its minimum at σ=0.500 — but for development decisions converging on the right architecture.",

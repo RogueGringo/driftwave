@@ -132,7 +132,7 @@ The visual topology dashboard. Three.js + Canvas visualizations.
 |-----------|------|---------|
 | SessionStart hook | `hooks/hooks.json` | Runs `topo.sh scan` + `validate` on startup |
 | Plugin config | `.claude-plugin/plugin.json` | Claude Code plugin manifest |
-| Artifact manifest | `.topo-artifacts.json` | L0 inventory of known artifacts |
+| Scan manifest | `<project>/.dw/topo-scan.json` | L0 summary written by topo.sh (replaced the committed `.topo-artifacts.json`, removed in 0.2.0) |
 | Local LLM | `scripts/start_local_llm.sh` | Adaptive GPU/CPU model server |
 | Persistence | `scripts/compute_persistence.py` | H₀ Union-Find on distance matrices |
 | Meta-persistence | `scripts/compute_meta_persistence.py` | H₀ across session history |
@@ -252,7 +252,7 @@ The user asked: is this dimensionalized along all context? Here's the mapping:
 |-----------|---------------|-----|
 | Schema-valid | UPWARD_FLOW | JSON Schema validation on every artifact |
 | Non-trivial | NO_AVERAGING | Entropy gate at L0 |
-| Data-driven scale | ADAPTIVE_SCALE | Epsilon from 95th percentile distances |
+| Data-driven scale | ADAPTIVE_SCALE | Cluster cut at median bar lifetime (pinned `eps_rule`) |
 | Hierarchifying | SHAPE_OVER_COUNT | Gini trajectory positive at L2 |
 | Phase-transition routed | WAYPOINT_ROUTING | ASCEND/REPROBE/SPLIT at each layer |
 | GPU-aware | ADAPTIVE_SCALE (infra) | Auto-detect GPU/CPU for model selection |

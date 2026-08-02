@@ -87,11 +87,17 @@ def eval_predicate(pred: dict, results) -> tuple[bool, str]:
             ok = (actual == expected) if op == "==" else (actual != expected)
             return ok, f"{detail} {op} {expected!r}"
         return False, f"{detail}: ordering op {op} needs a number"
-    ok = {
-        "==": actual == expected, "!=": actual != expected,
-        ">": actual > expected, ">=": actual >= expected,
-        "<": actual < expected, "<=": actual <= expected,
-    }[op]
+    try:
+        ok = {
+            "==": actual == expected, "!=": actual != expected,
+            ">": actual > expected, ">=": actual >= expected,
+            "<": actual < expected, "<=": actual <= expected,
+        }[op]
+    except TypeError:
+        # A number compared against a non-number expected value: the predicate
+        # is malformed. Fail the predicate, never the process — unknown never
+        # certifies, and a broken criterion must not crash the verdict.
+        return False, f"{detail}: cannot compare against {expected!r} ({op})"
     return ok, f"{detail} {op} {expected!r}"
 
 
@@ -99,17 +105,57 @@ def frozen_view(prereg: dict) -> dict:
     return {k: v for k, v in prereg.items() if k != "frozen_sha256"}
 
 
+def _shape_errors(prereg: dict) -> list[str]:
+    """A prereg that freezes must also be evaluable — freezing a prereg whose
+    predicates can only crash their own evaluation is worse than refusing."""
+    errs = []
+    for key in ("prereg_id", "question", "criteria"):
+        if key not in prereg:
+            errs.append(f"missing required key '{key}'")
+    for kind, entries in (("gates", prereg.get("gates", [])),
+                          ("criteria", prereg.get("criteria", []))):
+        if not isinstance(entries, list):
+            errs.append(f"{kind} must be a list")
+            continue
+        for i, e in enumerate(entries):
+            if not isinstance(e, dict):
+                errs.append(f"{kind}[{i}] must be an object")
+                continue
+            if kind == "gates" and ("name" not in e or not isinstance(e.get("predicate"), dict)):
+                errs.append(f"gates[{i}] needs 'name' and an object 'predicate'")
+            if kind == "criteria":
+                if "id" not in e or "predicate" not in e:
+                    errs.append(f"criteria[{i}] needs 'id' and 'predicate' (null = MANUAL)")
+                elif e["predicate"] is not None and not isinstance(e["predicate"], dict):
+                    errs.append(f"criteria[{i}].predicate must be an object or null")
+            pred = e.get("predicate")
+            if isinstance(pred, dict):
+                if "field" not in pred or pred.get("op") not in OPS:
+                    errs.append(f"{kind}[{i}].predicate needs 'field' and a known 'op'")
+    return errs
+
+
 def cmd_freeze(path: Path) -> int:
     prereg = strict_load_path(path)
+    if not isinstance(prereg, dict):
+        print("REFUSED: prereg must be a JSON object")
+        return 1
     if prereg.get("frozen_sha256"):
         print("REFUSED: prereg already frozen — criteria may not be re-frozen; "
               "a retry requires a NEW pre-registration")
         return 1
-    for key in ("prereg_id", "question", "criteria"):
-        if key not in prereg:
-            print(f"REFUSED: prereg missing required key '{key}'")
-            return 1
-    digest = sha256_of(frozen_view(prereg))
+    errs = _shape_errors(prereg)
+    if errs:
+        print("REFUSED: prereg is not evaluable as written:")
+        for e in errs:
+            print(f"    - {e}")
+        return 1
+    try:
+        digest = sha256_of(frozen_view(prereg))
+    except ValueError as e:
+        print(f"REFUSED: prereg is not canonically serializable ({e}) — "
+              "non-finite numbers cannot be frozen")
+        return 1
     prereg["frozen_sha256"] = digest
     path.write_text(json.dumps(prereg, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     print(f"FROZEN: {path} sha256={digest}")
@@ -118,11 +164,18 @@ def cmd_freeze(path: Path) -> int:
 
 def cmd_check(path: Path) -> int:
     prereg = strict_load_path(path)
+    if not isinstance(prereg, dict):
+        print("MISMATCH: prereg is not a JSON object — refusing to score")
+        return 1
     recorded = prereg.get("frozen_sha256")
     if not recorded:
         print("MISMATCH: prereg was never frozen (no frozen_sha256) — refusing to score")
         return 1
-    actual = sha256_of(frozen_view(prereg))
+    try:
+        actual = sha256_of(frozen_view(prereg))
+    except ValueError:
+        print("MISMATCH: prereg is no longer canonically serializable — refusing to score")
+        return 1
     if actual != recorded:
         print(f"MISMATCH: recorded {recorded} != recomputed {actual} — "
               "the criteria changed after freezing; refusing to score")
@@ -136,7 +189,21 @@ def cmd_eval(prereg_path: Path, results_path: Path, out: Path | None) -> int:
         print("VERDICT: NO_VERDICT prereg hash mismatch")
         return 2
     prereg = strict_load_path(prereg_path)
+    shape = _shape_errors(prereg)
+    if shape:
+        # A pre-0.2.1 freeze could stamp a malformed prereg; treat it as an
+        # instrument failure, never a crash.
+        print("VERDICT: NO_VERDICT prereg is not evaluable: " + "; ".join(shape))
+        return 2
     results = strict_load_path(results_path)
+    # Hash the results BEFORE any grammar prints: a results file that cannot
+    # be canonically serialized (non-finite numbers) must yield NO_VERDICT
+    # with no PASS line ever emitted — not a PASS transcript plus a crash.
+    try:
+        results_digest = sha256_of(results)
+    except ValueError as e:
+        print(f"VERDICT: NO_VERDICT results not canonically serializable ({e})")
+        return 2
 
     lines = []
     gate_rows, crit_rows = [], []
@@ -187,9 +254,10 @@ def cmd_eval(prereg_path: Path, results_path: Path, out: Path | None) -> int:
 
     if out:
         payload = {
+            "artifact": "computed_verdict",
             "prereg_id": prereg.get("prereg_id"),
             "prereg_sha256": prereg["frozen_sha256"],
-            "results_sha256": sha256_of(results),
+            "results_sha256": results_digest,
             "gates": gate_rows,
             "criteria": crit_rows,
             "verdict": verdict,
@@ -211,7 +279,17 @@ GRAMMAR = re.compile(r"^(GATE|CRITERION|VERDICT): (\S+)(?: (.*))?$")
 
 def cmd_parse(src: str) -> int:
     text = sys.stdin.read() if src == "-" else Path(src).read_text(encoding="utf-8")
-    parsed = {"gates": [], "criteria": [], "verdict": None, "verdict_reason": None}
+    # parse extracts a RECORD of grammar lines from a transcript — it does not
+    # certify them. The stamp below keeps a parsed transcript from ever
+    # impersonating a computed_verdict artifact, and an out-of-vocabulary
+    # token (something prose invented) is an error, not a verdict.
+    from dw_common import load_pin
+    vocabulary = set(load_pin()["verdict_vocabulary"])
+    parsed = {
+        "gates": [], "criteria": [], "verdict": None, "verdict_reason": None,
+        "provenance": {"producer": "dw_verdict.py parse", "plugin_version": PLUGIN_VERSION,
+                       "tier": "real", "params": {"note": "a parsed record, not an evaluation"}},
+    }
     for line in text.splitlines():
         m = GRAMMAR.match(line.strip())
         if not m:
@@ -225,11 +303,14 @@ def cmd_parse(src: str) -> int:
             parsed["criteria"].append({"id": tok, "status": status, "detail": detail})
         else:
             parsed["verdict"], parsed["verdict_reason"] = tok, rest
+    print(json.dumps(parsed, indent=2))
     if parsed["verdict"] is None:
-        print(json.dumps(parsed, indent=2))
         print("(no VERDICT line found — nothing here is a computed verdict)", file=sys.stderr)
         return 1
-    print(json.dumps(parsed, indent=2))
+    if parsed["verdict"] not in vocabulary:
+        print(f"(VERDICT token {parsed['verdict']!r} is not in the pinned verdict "
+              "vocabulary — this line was not written by dw_verdict eval)", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -252,4 +333,10 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (OSError, IndexError, ValueError) as e:
+        # Usage/environment errors (missing files, dangling flags, unparseable
+        # JSON) exit 2 with a message — never a traceback, never a verdict.
+        print(f"ERROR: {type(e).__name__}: {e}")
+        sys.exit(2)

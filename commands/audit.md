@@ -1,6 +1,6 @@
 ---
 description: "Artifacts-only re-verification of a run: schema + pin + hash checks from what's on disk, no re-analysis. The cheapest possible third-party check."
-arguments: "[state dir, default .dw]"
+argument-hint: "[artifact dir, default .dw/artifacts]"
 ---
 
 # /driftwave:audit

@@ -18,7 +18,8 @@ Receive a **SynthesisMap** artifact (L2). Check whether all design sections are 
 
 1. Read the SynthesisMap artifact with all sections
 2. Read `${CLAUDE_PLUGIN_ROOT}/rules/standing_rules.json` — the append-only
-   failure-mode memory. Check every section and every finding against:
+   failure-mode memory — plus the project's own `.dw/standing_rules.local.json`
+   when it exists. Check every section and every finding against:
    - each standing rule (R1 effect-size floors, R2 sign stability, R3
      baseline-first, R7 agreement-is-not-verification, R8 fail-closed, …)
    - each FALSIFIED entry (approaches already refuted with evidence — flag any

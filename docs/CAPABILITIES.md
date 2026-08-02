@@ -14,10 +14,10 @@ the dimensional map, and [README.md](../README.md) for the plain-language tour.
 
 | Command | Layer | What it does | Status | Needs |
 |---|---|---|---|---|
-| `/driftwave:directive` | — | The core loop: LOOK → PARSE → GAP → DO → LOG → CHECK. Structured JSONL log, read back each cycle; freezes criteria for big/evaluative gaps. | ✅ | nothing |
+| `/driftwave:directive` | — | The core loop: LOOK → PARSE → GAP → DO → LOG → CHECK. Structured JSONL log, read back each cycle; freezes criteria for big/evaluative gaps. | ✅ | stock `python3` for freeze/verdict steps (stdlib only) |
 | `/driftwave:status` | — | Session state: log tail, open preregs, artifact inventory, quick integrity check. | ✅ | nothing |
 | `/driftwave:preregister` | spine | Freeze decision criteria (sha256) before the work runs; both verdict branches pre-committed. | ✅ | nothing |
-| `/driftwave:selftest` | spine | Whole pipeline headless on planted fixtures with known ground truth (G1–G8); non-zero exit on failure. | ✅ | `numpy` for G1–G5/G7 (stdlib checks run without) |
+| `/driftwave:selftest` | spine | Whole pipeline headless on planted fixtures with known ground truth (G1–G8); non-zero exit on failure. | ✅ | `numpy` for G1–G5/G7/G8 (G6, the verdict spine, is stdlib; skipped checks exit 2, never pass) |
 | `/driftwave:audit` | spine | Artifacts-only re-verification: schema + pin + freeze hashes. No re-analysis. | ✅ | nothing |
 | `/driftwave:ingest` | L0 | Raw artifact scan into an unaveraged point cloud (falls back to `topo.sh scan`, which emits counts only — and says so). | ✅ | optional |
 | `/driftwave:filter` | L1 | H₀ persistent clustering (real Union-Find), with provenance, in-band dw-bench caveat, and a seeded decoy null check. | ✅ | `numpy` |
@@ -57,7 +57,7 @@ the dimensional map, and [README.md](../README.md) for the plain-language tour.
 | `scripts/dw_selftest.py` | Planted-fixture end-to-end instrument (G1–G8) | ✅ real | `numpy` for G1–G5/G7 |
 | `scripts/compute_persistence.py` | H₀ persistent homology (Union-Find); adapter features/distances input; provenance + decoy null check + in-band caveat | ✅ real | `numpy` |
 | `scripts/compute_meta_persistence.py` | H₀ persistence across accumulated sessions | ✅ real | `numpy` |
-| `scripts/topo.sh` | SessionStart hook + manual CLI; clusters by actual top-level dirs, writes to `.dw/`, read-only in your project | ✅ | bash |
+| `scripts/topo.sh` | SessionStart hook + manual CLI; clusters by actual top-level dirs; writes only inside the per-project `.dw/` state dir, nothing else in your project | ✅ | bash |
 | `scripts/test_artifact_json.py` | Regression tests: strict-valid artifacts, schema conformance, pin/lexicon enforcement, verdict spine | ✅ | `numpy`, optional `jsonschema` |
 | `scripts/start_local_llm.sh` | Local-LLM server for L0/L1 routing | 🔭 planned — not wired into the loop | — |
 

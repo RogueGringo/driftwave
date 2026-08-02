@@ -18,7 +18,7 @@ Run the L1 filtration layer. Takes the RawCloud artifact and finds persistent st
 5. Output saved to `.dw/artifacts/filtered.json`
 6. Validate — actually run it:
    ```bash
-   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/filtered.json
+   python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/filtered.json --schema filtered_topology.json
    ```
 
 ## After filtering

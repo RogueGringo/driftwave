@@ -60,8 +60,10 @@ found by a full self-audit is fixed. The front door is unchanged:
   "mistakes don't repeat because the log remembers" claim was write-only wiring.
 - **`topo.sh` de-hardcoded**: clusters recent changes by the repo's actual
   top-level directories instead of the author's old monorepo layout; writes its
-  manifest to `.dw/` instead of dirtying the installed plugin's git tree; never
-  creates files in the user's project; validates the pin + schemas as JSON.
+  scan manifest into the per-project `.dw/` state dir instead of dirtying the
+  installed plugin's git tree; writes nothing outside `.dw/` (the
+  EXPERIMENT_LOG stub-creation is gone); validates the pin + schemas as JSON;
+  handles an unborn HEAD without emitting invalid JSON.
 - **gini-watchdog is wired in** (dispatched by synthesize/run every 2 sections)
   and HOLD is representable in the L1/L2 routing enums.
 - **Doc-vs-code drift reconciled**: the epsilon rule text now matches the code
@@ -78,6 +80,8 @@ found by a full self-audit is fixed. The front door is unchanged:
 - The stale committed `.topo-artifacts.json` (a scan snapshot of a different
   repo from 2026-03), plus its PLUGIN_ROOT write path.
 
+
+## [0.1.2] — 2026-06-28
 
 Continues the claims-to-reality work onto every surface, leads the site with the
 product, and fixes a Windows-only hook false alarm found by installing and testing
@@ -187,6 +191,7 @@ First packaged, installable release.
 - `meta.md` validates its output against `meta_persistence.json` before reporting.
 - Aligned author email between plugin and marketplace manifests.
 
+[0.2.0]: https://github.com/RogueGringo/driftwave/releases/tag/v0.2.0
 [0.1.2]: https://github.com/RogueGringo/driftwave/releases/tag/v0.1.2
 [0.1.1]: https://github.com/RogueGringo/driftwave/releases/tag/v0.1.1
 [0.1.0]: https://github.com/RogueGringo/JTopo/releases/tag/driftwave-v0.1.0

@@ -1,6 +1,6 @@
 ---
 description: "The core process. Three subagents: WHAT IS, WHAT'S ASKED, THE GAP. Then route, execute, log, verify — with frozen criteria when the work is big enough to deserve them."
-arguments: "<request>"
+argument-hint: "<request>"
 ---
 
 # /driftwave:directive

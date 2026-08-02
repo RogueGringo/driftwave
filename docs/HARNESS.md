@@ -43,10 +43,20 @@ the harness exists to prevent.
 `driftwave.pin.json` is the locked registry no agent, command, or artifact may
 retune: honesty tiers, verdict/routing vocabularies, the closed flag
 vocabulary (the ONLY significance channel), the prohibited overclaim lexicon,
-gate thresholds, and the state-dir rule. `scripts/dw_validate.py` enforces the
-pin on every artifact — an off-vocabulary flag or a "proves" in a claim field
-is a validation failure, not a style note. Changing the pin is a human git
-commit, never a runtime act.
+gate thresholds, and the state-dir rule. Enforcement is split honestly:
+`scripts/dw_validate.py` enforces the vocabularies, lexicon, honesty stamps,
+and witness-on-closure on every artifact — an off-vocabulary flag or a
+"proves" in a claim field is a validation failure, not a style note — while
+the gate thresholds are *read* by the pipeline scripts (the SPLIT threshold
+and eps rule in `compute_persistence.py` come from the pin, not constants).
+Changing the pin is a human git commit, never a runtime act.
+
+One deliberate mixed case: the L1 artifact is a computed record (`real` tier —
+barcode, distances, null_check) onto which the `dw-cluster` agent adds
+human-readable labels, which are LLM judgment. The labels are claim fields —
+subject to the lexicon check — and additive only: the agent may never alter
+the computed record. That is the only place a real-tier artifact carries
+LLM-authored text, and this paragraph is its disclosure.
 
 ## The verdict algebra
 

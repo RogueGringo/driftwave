@@ -253,6 +253,101 @@ def test_verdict_freeze_and_tamper():
     print("PASS test_verdict_freeze_and_tamper")
 
 
+def test_nonfinite_inputs_never_ship_nan():
+    """Adversarial-verify catch: 1e999 is VALID strict JSON that parses to inf;
+    min-max normalizing an inf column yields NaN everywhere, and the scripts
+    shipped bare NaN tokens (the exact P0 bug this suite guards). Non-finite
+    features must yield a clean REPROBE artifact instead."""
+    # NB: raw text on purpose — json.dumps would turn inf into a bare
+    # `Infinity` token, which is the OTHER hostile case tested below.
+    hostile = ('{"files": [{"path": "a", "features": [1e999, 1]},'
+               ' {"path": "b", "features": [2, 3]},'
+               ' {"path": "c", "features": [4, 5]}]}')
+    proc0 = subprocess.run(
+        [sys.executable, str(SCRIPTS / "compute_persistence.py")],
+        input=hostile, capture_output=True, text=True)
+    assert proc0.returncode == 0, proc0.stderr
+    out = strict_loads(proc0.stdout)
+    assert out["routing"] == "REPROBE" and "finite" in out["routing_reason"], out["routing_reason"]
+    # A literal NaN token (invalid strict JSON) must be rejected at the door.
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS / "compute_persistence.py")],
+        input='{"files": [{"path": "a", "features": [NaN, 1]}]}',
+        capture_output=True, text=True)
+    assert proc.returncode != 0, "bare NaN token in input must be rejected, not swallowed"
+    # All-identical features are zero information, not strong structure.
+    flat = {"files": [{"path": p, "features": [1, 1]} for p in "abc"]}
+    out2 = strict_loads(run("compute_persistence.py", flat))
+    assert out2["routing"] == "REPROBE" and "no_structure" in out2["flags"], out2["flags"]
+    print("PASS test_nonfinite_inputs_never_ship_nan")
+
+
+def test_validator_survives_type_confusion():
+    """Adversarial-verify catch: type-confused artifacts crashed pin_check
+    with tracebacks (and one bad file aborted a whole --all audit). They must
+    be reported INVALID instead."""
+    for hostile in (
+        {"layer": "L1", "flags": 5},
+        {"layer": "L3", "verdicts": ["ok"]},
+        {"layer": "L1", "provenance": "real"},
+    ):
+        proc = subprocess.run(
+            [sys.executable, str(SCRIPTS / "dw_validate.py"), "-"],
+            input=json.dumps(hostile), capture_output=True, text=True)
+        assert proc.returncode == 1, f"{hostile} must be INVALID (rc=1), got rc={proc.returncode}"
+        assert "Traceback" not in proc.stderr, f"validator crashed on {hostile}"
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS / "dw_validate.py"), "--all", "/nonexistent-dw-dir"],
+        capture_output=True, text=True)
+    assert proc.returncode == 2, "--all on a missing dir must fail closed (rc=2), not audit nothing green"
+    print("PASS test_validator_survives_type_confusion")
+
+
+def test_computed_verdict_artifact_validates():
+    """Adversarial-verify catch: the spine rejected its own output — the eval
+    --out artifact was mis-inferred as a preregistration. It now carries a
+    discriminator and its own schema, and must validate strict."""
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="dw-test-"))
+    p = tmp / "prereg.json"
+    p.write_text(json.dumps({
+        "prereg_id": "cv1", "question": "toy",
+        "criteria": [{"id": "C1", "predicate": {"field": "m", "op": ">", "value": 0}}]}),
+        encoding="utf-8")
+    r = tmp / "results.json"
+    r.write_text(json.dumps({"m": 1}), encoding="utf-8")
+    vout = tmp / "verdict.json"
+
+    def cli(script, *args, stdin=None):
+        return subprocess.run([sys.executable, str(SCRIPTS / script), *args],
+                              input=stdin, capture_output=True, text=True)
+
+    assert cli("dw_verdict.py", "freeze", str(p)).returncode == 0
+    assert cli("dw_verdict.py", "eval", str(p), str(r), "--out", str(vout)).returncode == 0
+    val = cli("dw_validate.py", str(vout), "--strict")
+    assert val.returncode == 0, f"computed_verdict artifact must validate: {val.stdout}"
+    assert "computed_verdict.json" in val.stdout, val.stdout
+    # A results file with non-finite numbers must yield NO_VERDICT with no
+    # PASS line ever printed (previously: PASS to stdout, then a crash).
+    r.write_text('{"m": 1e999}', encoding="utf-8")
+    ev = cli("dw_verdict.py", "eval", str(p), str(r))
+    assert ev.returncode != 0 and "NO_VERDICT" in ev.stdout and "PASS" not in ev.stdout.replace("NO_VERDICT", ""), ev.stdout
+    # A schema-legal but type-broken predicate must fail its criterion, not crash.
+    p2 = tmp / "p2.json"
+    p2.write_text(json.dumps({
+        "prereg_id": "cv2", "question": "toy", "null_is_valid": False,
+        "criteria": [{"id": "C1", "predicate": {"field": "m", "op": ">", "value": "high"}}]}),
+        encoding="utf-8")
+    r.write_text(json.dumps({"m": 1}), encoding="utf-8")
+    assert cli("dw_verdict.py", "freeze", str(p2)).returncode == 0
+    ev2 = cli("dw_verdict.py", "eval", str(p2), str(r))
+    assert "Traceback" not in ev2.stderr and "VERDICT: FAIL" in ev2.stdout, ev2.stdout + ev2.stderr
+    # parse must not launder out-of-vocabulary verdict tokens.
+    pr = cli("dw_verdict.py", "parse", "-", stdin="VERDICT: TOTALLY_CERTIFIED because I said so\n")
+    assert pr.returncode != 0, "out-of-vocabulary VERDICT token must not parse clean"
+    print("PASS test_computed_verdict_artifact_validates")
+
+
 if __name__ == "__main__":
     test_persistence()
     test_meta_persistence()
@@ -263,4 +358,7 @@ if __name__ == "__main__":
     test_features_channel_adapter()
     test_validator_rejects_pin_violations()
     test_verdict_freeze_and_tamper()
+    test_nonfinite_inputs_never_ship_nan()
+    test_validator_survives_type_confusion()
+    test_computed_verdict_artifact_validates()
     print("\nAll artifact-JSON tests passed.")

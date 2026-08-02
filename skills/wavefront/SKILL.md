@@ -31,7 +31,7 @@ ARTIFACTS_DIR = .dw/artifacts/   (create if not exists; state dir resolution:
 1. DISPATCH dw-ingest agent (haiku)
    ├─ Input: project directory, user prompt
    ├─ Output: artifacts/raw.json (RawCloud schema)
-   ├─ Validate: python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json
+   ├─ Validate: python3 ${CLAUDE_PLUGIN_ROOT}/scripts/dw_validate.py .dw/artifacts/raw.json --schema raw_cloud.json
    ├─ entropy < 0.1? → ASK user for more input, re-dispatch
    └─ Save artifact, proceed to L1
 
@@ -45,7 +45,7 @@ ARTIFACTS_DIR = .dw/artifacts/   (create if not exists; state dir resolution:
 3. DISPATCH dw-cluster agent (sonnet)
    ├─ Input: artifacts/raw.json + artifacts/persistence.json
    ├─ Output: artifacts/filtered.json (FilteredTopology schema)
-   ├─ Validate: dw_validate.py .dw/artifacts/filtered.json
+   ├─ Validate: dw_validate.py .dw/artifacts/filtered.json --schema filtered_topology.json
    ├─ routing == REPROBE → back to step 1
    ├─ routing == SPLIT → fork: create sub-pipelines, each starting at L2
    └─ routing == ASCEND → proceed to L2
@@ -53,7 +53,7 @@ ARTIFACTS_DIR = .dw/artifacts/   (create if not exists; state dir resolution:
 4. DISPATCH dw-synthesize agent (sonnet)
    ├─ Input: artifacts/filtered.json + relevant source files
    ├─ Output: artifacts/synthesis.json (SynthesisMap schema, not_acceptance: true)
-   ├─ Validate: dw_validate.py .dw/artifacts/synthesis.json
+   ├─ Validate: dw_validate.py .dw/artifacts/synthesis.json --schema synthesis_map.json
    ├─ DISPATCH gini-watchdog after every 2 sections; obey ASCEND/REPROBE/HOLD/SPLIT
    ├─ open loops > 0? → iterate within L2 (max 3)
    └─ all loops closed + positive slope → proceed to L3
@@ -62,7 +62,7 @@ ARTIFACTS_DIR = .dw/artifacts/   (create if not exists; state dir resolution:
    ├─ Input: artifacts/synthesis.json + spec docs + rules/standing_rules.json
    ├─ Output: artifacts/verdict.json (SheavedVerdict schema, named findings,
    │          not_acceptance: true)
-   ├─ Validate: dw_validate.py .dw/artifacts/verdict.json
+   ├─ Validate: dw_validate.py .dw/artifacts/verdict.json --schema sheaved_verdict.json
    ├─ OFF_SHELL → report obstructions → human decides
    └─ ON_SHELL → implementation gate OPEN
 
@@ -90,7 +90,7 @@ versions of this table claimed a local model that nothing dispatched.
 
 1. Create `.dw/artifacts/` directory
 2. Dispatch each agent via the Agent tool with the artifact path as input
-3. Run dw_validate.py on each artifact — an invalid artifact never reaches the next layer
+3. Run dw_validate.py on each artifact WITH the expected --schema for that layer — an invalid or wrong-layer artifact never reaches the next layer
 4. Make routing decisions based on artifact routing field
 5. Handle REPROBE loops (max 3 iterations per layer, pinned)
 6. Present final verdict to user — computed grammar first, prose second

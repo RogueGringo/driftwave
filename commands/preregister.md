@@ -1,6 +1,6 @@
 ---
 description: "Freeze decision criteria BEFORE the work runs. Question, predicates, baselines, non-goals, both verdict branches — sha256-frozen; eval refuses to score anything that drifted."
-arguments: "<what is being tested/built>"
+argument-hint: "<what is being tested/built>"
 ---
 
 # /driftwave:preregister

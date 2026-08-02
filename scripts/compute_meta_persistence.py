@@ -184,14 +184,26 @@ def compute_convergence_signature(meta: dict) -> dict:
     }
 
 
+def _reject_constant(token: str):
+    raise ValueError(f"non-finite JSON constant in input (invalid strict JSON): {token!r}")
+
+
+def _provenance() -> dict:
+    return {"producer": "compute_meta_persistence.py",
+            "plugin_version": "0.2.0", "tier": "real"}
+
+
 def main():
-    meta = json.load(sys.stdin)
+    # Strict parse + allow_nan=False dumps: a NaN must never pass through
+    # silently nor ship as a bare token (the P0 bug this suite guards).
+    meta = json.loads(sys.stdin.read(), parse_constant=_reject_constant)
     sessions = meta.get("sessions", [])
 
     if len(sessions) < 2:
         meta["meta_barcode"] = []
         meta["convergence_signature"] = compute_convergence_signature(meta)
-        json.dump(meta, sys.stdout, indent=2)
+        meta["provenance"] = _provenance()
+        json.dump(meta, sys.stdout, indent=2, allow_nan=False)
         return
 
     # Compute distances between sessions
@@ -209,9 +221,15 @@ def main():
 
     meta["meta_barcode"] = barcode
     meta["convergence_signature"] = compute_convergence_signature(meta)
+    meta["provenance"] = _provenance()
 
-    json.dump(meta, sys.stdout, indent=2)
+    json.dump(meta, sys.stdout, indent=2, allow_nan=False)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ValueError as e:
+        # Invalid strict JSON on stdin: reject with a message, not a traceback.
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(2)
